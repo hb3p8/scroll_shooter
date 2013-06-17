@@ -38,18 +38,94 @@
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 
+		<script id="vertexShader" type="x-shader/x-vertex">
+
+			void main()	{
+
+				gl_Position = vec4( position, 1.0 );
+
+			}
+
+		</script>
+
+		<script id="fragmentShader" type="x-shader/x-fragment">
+
+			uniform vec2 resolution;
+			uniform float time;
+
+			// Star Nest by Kali
+
+			#define iterations 17
+			#define formuparam 0.530
+
+			#define volsteps 10
+			#define stepsize 0.100
+
+			#define zoom   0.800
+			#define tile   0.850
+			#define speed  0.015 
+
+			#define brightness 0.0015
+			#define darkmatter 0.300
+			#define distfading 0.760
+			#define saturation 0.800
+
+			void main(void)
+			{
+				//get coords and direction
+				vec2 uv=gl_FragCoord.xy/resolution.xy-.5;
+				uv.y*=resolution.y/resolution.x;
+				vec3 dir=vec3(uv*zoom,1.);
+				float time=time*speed+.25;
+
+				vec3 from=vec3(1.,.5,0.5);
+				from+=vec3(0.,time,-2.);
+
+				
+				//volumetric rendering
+				float s=0.1,fade=1.;
+				vec3 v=vec3(0.);
+				for (int r=0; r<volsteps; r++) {
+					vec3 p=from+s*dir*.5;
+					p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
+					float pa,a=pa=0.;
+					for (int i=0; i<iterations; i++) { 
+						p=abs(p)/dot(p,p)-formuparam; // the magic formula
+						a+=abs(length(p)-pa); // absolute sum of average change
+						pa=length(p);
+					}
+					float dm=max(0.,darkmatter-a*a*.001); //dark matter
+					a*=a*a; // add contrast
+					if (r>3) fade*=1.-dm; // dark matter, don't render near
+					//v+=vec3(dm,dm*.5,0.);
+					v+=fade;
+					v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; // coloring based on distance
+					fade*=distfading; // distance fading
+					s+=stepsize;
+				}
+				v=mix(vec3(length(v)),v,saturation); //color adjust
+				gl_FragColor = vec4(v*.01,1.);	
+				
+			}
+
+		</script>
+
 		<script>
 
 			var container, stats;
 
 			var camera, scene, renderer, shipGeometry;
 
+			var planeCamera, planeScene;
+
 			var mouseX = 0, mouseY = 0;
 
 			var windowHalfX = window.innerWidth / 2;
 			var windowHalfY = window.innerHeight / 2;
 
-			var unprojectMat, projector;
+			var projector;
+
+			var uniforms, material, mesh;
 
 
 			init();
@@ -65,8 +141,8 @@
 				camera.position.set( 0, 40, 0 );
 				camera.rotation.set( - Math.PI / 2., 0, Math.PI);
 
-				unprojectMat = new THREE.Matrix4();
-				unprojectMat.getInverse( camera.projectionMatrix );
+				planeCamera = new THREE.Camera();
+				planeCamera.position.z = 1; 
 
 				projector = new THREE.Projector();
 
@@ -74,9 +150,29 @@
 
 				scene = new THREE.Scene();
 
+				planeScene = new THREE.Scene();
+
+				uniforms = {
+					time: { type: "f", value: 1.0 },
+					resolution: { type: "v2", value: new THREE.Vector2() }
+				};
+
+				material = new THREE.ShaderMaterial( {
+
+					uniforms: uniforms,
+					vertexShader: document.getElementById( 'vertexShader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+
+				} );
+
+				material.depthWrite = false;
+
+				mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), material );
+				planeScene.add( mesh );
+
 				//camera.lookAt( scene.position );
 
-				var ambient = new THREE.AmbientLight( 0xf0f0f0 );
+				var ambient = new THREE.AmbientLight( 0xffffff );
 				scene.add( ambient );
 
 				// var directionalLight = new THREE.DirectionalLight( 0xffeedd );
@@ -99,7 +195,9 @@
 				//
 
 				renderer = new THREE.WebGLRenderer();
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.autoClear = false;
+				onWindowResize();
+
 				container.appendChild( renderer.domElement );
 
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
@@ -117,6 +215,9 @@
 
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
+
+				uniforms.resolution.value.x = window.innerWidth;
+				uniforms.resolution.value.y = window.innerHeight;
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
@@ -138,10 +239,14 @@
 
 			}
 
-			function render() {
 
-				// camera.position.x += ( mouseX - camera.position.x ) * .01;
-				// camera.position.y += ( - mouseY - camera.position.y ) * .01;
+			function clamp(val, min, max){
+    			return Math.max(min, Math.min(max, val))
+			}		
+
+			function render() {
+				uniforms.time.value += 0.05;
+
 				if (shipGeometry) {
 					var vec = new THREE.Vector3(
 					    ( mouseX / window.innerWidth ) * 2.,
@@ -149,16 +254,26 @@
 					    0.5 );
 
 					projector.unprojectVector( vec, camera );
-
 					var dir = vec.sub( camera.position ).normalize();
-
 					var distance = - (camera.position.y + 40.) / dir.y;
-
 					var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+					pos.add( new THREE.Vector3(0, 0, -1.5) );
+
+					var delta = new THREE.Vector3(0, 0, 0);
+					delta.subVectors(pos, shipGeometry.position);
+					delta.divideScalar(4.); 
+					delta.setY( 0.0 );
 					
-					shipGeometry.position.set(pos.x, 0., pos.z - 1.5);
+					shipGeometry.position.add(delta);
+					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
+					// console.log(angle)
+					shipGeometry.rotation.set(0, 0, angle);
 				}
-				//camera.lookAt( scene.position );
+
+				renderer.clear();
+				renderer.setDepthWrite( false );
+				renderer.render( planeScene, planeCamera );
+				renderer.setDepthWrite( true );
 
 				renderer.render( scene, camera );
 
