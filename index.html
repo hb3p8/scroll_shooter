@@ -27,7 +27,7 @@
 
 	<body>
 		<div id="info">
-		Based on <a href="http://threejs.org" target="_blank">three.js</a>
+		<!-- Based on <a href="http://threejs.org" target="_blank">three.js</a> -->
 		</div>
 
 		<script src="js/three.min.js"></script>
@@ -37,6 +37,7 @@
 
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
+		<script src='js/libs/dat.gui.min.js'></script>
 
 		<script id="vertexShader" type="x-shader/x-vertex">
 
@@ -58,7 +59,7 @@
 			#define iterations 17
 			#define formuparam 0.530
 
-			#define volsteps 10
+			#define volsteps 14
 			#define stepsize 0.100
 
 			#define zoom   0.800
@@ -112,6 +113,8 @@
 
 		<script>
 
+		  if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
 			var container, stats;
 
 			var camera, scene, renderer, shipGeometry;
@@ -126,6 +129,8 @@
 			var projector;
 
 			var uniforms, material, mesh;
+
+			var debugController;
 
 
 			init();
@@ -151,6 +156,11 @@
 				scene = new THREE.Scene();
 
 				planeScene = new THREE.Scene();
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
 
 				uniforms = {
 					time: { type: "f", value: 1.0 },
@@ -194,11 +204,27 @@
 
 				//
 
-				renderer = new THREE.WebGLRenderer();
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.autoClear = false;
 				onWindowResize();
 
 				container.appendChild( renderer.domElement );
+
+				debugController  = {
+
+					enabled: true
+
+				};
+
+				var debugUpdate = function( ) {
+
+				};
+
+				var gui = new dat.GUI();
+
+				gui.add( debugController, "enabled" ).onChange( debugUpdate );
+
+
 
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 
@@ -236,6 +262,7 @@
 
 				requestAnimationFrame( animate );
 				render();
+				stats.update();
 
 			}
 
@@ -245,6 +272,7 @@
 			}		
 
 			function render() {
+				if (!debugController.enabled) return;
 				uniforms.time.value += 0.05;
 
 				if (shipGeometry) {
