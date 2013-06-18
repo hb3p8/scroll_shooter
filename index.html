@@ -118,6 +118,7 @@
 			var container, stats;
 
 			var camera, scene, renderer, shipGeometry;
+			var enemies = [];
 
 			var planeCamera, planeScene;
 
@@ -135,6 +136,26 @@
 
 			init();
 			animate();
+
+
+			function spawnEnemy() {
+				var newEnemy;
+				for (var i = 0; i < enemies.length; i++) {
+					if (enemies[i].visible === false) {
+						newEnemy = enemies[i];
+						newEnemy.position.set(Math.random() * 20 - 10, 0., 20.);
+						newEnemy.rotation.set(0., Math.PI, 0.);
+						newEnemy.velocity.set(0, 0, -0.2)
+						if (newEnemy.position.x > 0)
+							newEnemy.accel.set(-0.001, 0, -0.001)
+						else 
+							newEnemy.accel.set(0.001, 0, -0.001)
+						break;
+					};
+				};
+
+				newEnemy.visible = true;
+			}
 
 
 			function init() {
@@ -196,11 +217,30 @@
 
 					shipGeometry = event.content;
 
-					//object.position.set(10., 0., 10.);
+					// enemy = shipGeometry.children[0].children[0].clone();
+
 					scene.add( shipGeometry );
 
 				});
 				loader.load( 'obj/fighter/fighter.obj', 'obj/fighter/fighter.mtl' );
+
+				var enemyLoader = new THREE.OBJMTLLoader();
+				enemyLoader.addEventListener( 'load', function ( event ) {
+
+					for (var i = 0; i < 10; i++) {
+						var enemy = event.content.children[0].children[0].clone();
+						enemy.visible = false;
+						enemy.velocity = new THREE.Vector3(0, 0, 0);
+						enemy.accel = new THREE.Vector3(0, 0, 0);
+						scene.add( enemy );
+						enemies.push( enemy );
+
+					};
+
+				});
+				enemyLoader.load( 'obj/fighter/fighter.obj', 'obj/fighter/enemy.mtl' );
+
+				setInterval(spawnEnemy, 2000);
 
 				//
 
@@ -212,7 +252,7 @@
 
 				debugController  = {
 
-					enabled: true
+					enabled: true,
 
 				};
 
@@ -273,7 +313,25 @@
 
 			function render() {
 				if (!debugController.enabled) return;
+
 				uniforms.time.value += 0.05;
+
+				// update enemies
+
+				// var k = 0;
+				for (var i = 0; i < enemies.length; i++) {
+					if (enemies[i].visible === true) {
+						enemies[i].position.add(enemies[i].velocity);
+						enemies[i].velocity.add(enemies[i].accel);
+						var angle = clamp(enemies[i].velocity.x, -0.15, 0.15) / 0.15 * Math.PI / 5.;
+						enemies[i].rotation.set(0, Math.PI, angle);
+						// k += 1;
+						if (enemies[i].position.z < -20.) 
+							enemies[i].visible = false;
+					};
+				};
+
+
 
 				if (shipGeometry) {
 					var vec = new THREE.Vector3(
@@ -294,7 +352,6 @@
 					
 					shipGeometry.position.add(delta);
 					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
-					// console.log(angle)
 					shipGeometry.rotation.set(0, 0, angle);
 				}
 
