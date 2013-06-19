@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgl - loaders - OBJ MTL loader</title>
+		<title>webgl - game</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -111,14 +111,62 @@
 
 		</script>
 
+		<script type="x-shader/x-vertex" id="particleVertexShader">
+
+			uniform float amplitude;
+			attribute float size;
+			attribute vec3 customColor;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				vColor = customColor;
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				// gl_PointSize = size;
+				gl_PointSize = size * ( 300.0 / length( mvPosition.xyz ) );
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="particleFragmentShader">
+
+			uniform vec3 color;
+			uniform sampler2D texture;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				gl_FragColor = vec4( color * vColor, 1.0 );
+				vec2 t = gl_PointCoord;
+				// float angle = 3.1415 / 3.;
+				// float s = sin(angle);
+				// float c = cos(angle);
+				// t -= vec2(0.5, 0.5);
+				// t = vec2(t.x * c - t.y * s, t.x * s + t.y * c);
+				// t += vec2(0.5, 0.5);
+				vec4 intensity = texture2D( texture, t );
+				gl_FragColor = gl_FragColor * intensity * intensity * intensity * 2. ;
+
+			}
+
+		</script>
+
 		<script>
 
 		  if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var container, stats;
 
-			var camera, scene, renderer, shipGeometry;
+			var camera, scene, renderer, ship;
 			var enemies = [];
+			var bullets = [];
 
 			var planeCamera, planeScene;
 
@@ -133,9 +181,115 @@
 
 			var debugController;
 
+			var particles, particleUniforms, particleAttributes;
 
 			init();
 			animate();
+
+			Array.prototype.remove = function(from, to) {
+			  var rest = this.slice((to || from) + 1 || this.length);
+			  this.length = from < 0 ? this.length + from : from;
+			  return this.push.apply(this, rest);
+			};
+
+			function Bullet(position, velocity, fromPlayer)
+			{
+				this.position=position;
+				this.velocity=velocity;
+				this.fromPlayer=fromPlayer;
+				this.visible = true;
+			}
+
+			function cleanBullets() {
+				// console.log("cleanup");
+
+				bullets.sort(function(a, b) { 
+					if(a.visible === b.visible) return 0; else return b.visible;
+				})
+
+				for (var i = 0; i < bullets.length; i++) {
+					if(!bullets[i].visible) {
+						bullets.remove(i, -1);
+						break;
+					}
+				};
+
+			}
+
+			function playerShoot() {
+				// console.log(bullets.length);
+				var velocity = new THREE.Vector3(0, 0, 0.8);
+				var firstPosition = new THREE.Vector3(1.6, 0, 2.0);
+				var secondPosition = new THREE.Vector3(-1.6, 0, 2.0);
+				var bullet = new Bullet(ship.position.clone().add(firstPosition), velocity, true);
+				bullets.push( bullet );
+
+				bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
+				bullets.push( bullet );
+			}
+
+			function initParticles() {
+				particleAttributes = {
+
+					size: {	type: 'f', value: [] },
+					customColor: { type: 'c', value: [] }
+
+				};
+
+				particleUniforms = {
+
+					amplitude: { type: "f", value: 1.0 },
+					color:     { type: "c", value: new THREE.Color( 0xffffff ) },
+					texture:   { type: "t", value: THREE.ImageUtils.loadTexture( "sprites/spark3.png" ) },
+
+				};
+
+				var shaderMaterial = new THREE.ShaderMaterial( {
+
+					uniforms: 		particleUniforms,
+					attributes:     particleAttributes,
+					vertexShader:   document.getElementById( 'particleVertexShader' ).textContent,
+					fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent,
+
+					blending: 		THREE.AdditiveBlending,
+					depthTest: 		false,
+					transparent:	true
+
+				});
+
+
+				var radius = 10;
+				var geometry = new THREE.Geometry();
+
+				for ( var i = 0; i < 100; i++ ) {
+					var vertex = new THREE.Vector3();
+					geometry.vertices.push( vertex );
+				}
+				
+				particles = new THREE.ParticleSystem( geometry, shaderMaterial );
+
+				particles.dynamic = true;
+				//particles.sortParticles = true;
+
+				var vertices = particles.geometry.vertices;
+				var values_size = particleAttributes.size.value;
+				var values_color = particleAttributes.customColor.value;
+
+
+				for( var v = 0; v < vertices.length; v++ ) {
+
+					values_size[ v ] = 10;
+					values_color[ v ] = new THREE.Color( 0x00aa00 );
+
+					// if ( vertices[ v ].x < 0 )
+					// 	values_color[ v ].setHSL( 0.5 + 0.1 * ( v / vertices.length ), 0.7, 0.5 );
+					// else
+					// 	values_color[ v ].setHSL( 0.0 + 0.1 * ( v / vertices.length ), 0.9, 0.5 );
+
+				}
+
+				scene.add( particles );
+			}
 
 
 			function spawnEnemy() {
@@ -145,16 +299,22 @@
 						newEnemy = enemies[i];
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 20.);
 						newEnemy.rotation.set(0., Math.PI, 0.);
-						newEnemy.velocity.set(0, 0, -0.2)
+						newEnemy.velocity.set(0, 0, -0.3)
 						if (newEnemy.position.x > 0)
-							newEnemy.accel.set(-0.001, 0, -0.001)
+							newEnemy.accel.set(-0.003, 0, -0.001)
 						else 
-							newEnemy.accel.set(0.001, 0, -0.001)
+							newEnemy.accel.set(0.003, 0, -0.001)
 						break;
 					};
 				};
 
-				newEnemy.visible = true;
+				if (newEnemy) {
+					newEnemy.visible = true;
+					if (Math.random() < 0.2) { 
+						spawnEnemy(); 
+						newEnemy.position.z += 5;
+					}
+				}
 			}
 
 
@@ -215,11 +375,11 @@
 				var loader = new THREE.OBJMTLLoader();
 				loader.addEventListener( 'load', function ( event ) {
 
-					shipGeometry = event.content;
+					ship = event.content;
 
-					// enemy = shipGeometry.children[0].children[0].clone();
+					// enemy = ship.children[0].children[0].clone();
 
-					scene.add( shipGeometry );
+					scene.add( ship );
 
 				});
 				loader.load( 'obj/fighter/fighter.obj', 'obj/fighter/fighter.mtl' );
@@ -241,6 +401,12 @@
 				enemyLoader.load( 'obj/fighter/fighter.obj', 'obj/fighter/enemy.mtl' );
 
 				setInterval(spawnEnemy, 2000);
+				setInterval(playerShoot, 500);
+				setInterval(cleanBullets, 300);
+
+				//
+
+				initParticles();
 
 				//
 
@@ -316,6 +482,32 @@
 
 				uniforms.time.value += 0.05;
 
+				// update bullets
+
+				var vertices = particles.geometry.vertices;
+				for( var i = 0; i < particleAttributes.size.value.length; i++ ) {
+					var bullet = bullets[i]
+					if (bullet && bullet.visible ) {
+
+						bullet.position.add(bullet.velocity);
+						vertices[i] = bullet.position.clone();
+						particleAttributes.size.value[ i ] = 20.;
+					//	if (bullet.fromPlayer)
+							particleAttributes.customColor.value[ i ] = new THREE.Color( 0xaa0000 );
+						if (bullet.position.z > 20. || bullet.position.z < -20.  ) 
+							bullet.visible = false;
+
+					} else {
+
+						particleAttributes.size.value[ i ] = 0.;
+
+					}
+
+				}
+				particleAttributes.size.needsUpdate = true;
+				particleAttributes.customColor.value.needsUpdate = true;
+				particles.geometry.verticesNeedUpdate = true;
+
 				// update enemies
 
 				// var k = 0;
@@ -323,7 +515,7 @@
 					if (enemies[i].visible === true) {
 						enemies[i].position.add(enemies[i].velocity);
 						enemies[i].velocity.add(enemies[i].accel);
-						var angle = clamp(enemies[i].velocity.x, -0.15, 0.15) / 0.15 * Math.PI / 5.;
+						var angle = clamp(enemies[i].velocity.x, -0.2, 0.2) / 0.2 * Math.PI / 5.;
 						enemies[i].rotation.set(0, Math.PI, angle);
 						// k += 1;
 						if (enemies[i].position.z < -20.) 
@@ -332,8 +524,9 @@
 				};
 
 
+				// update ship
 
-				if (shipGeometry) {
+				if (ship) {
 					var vec = new THREE.Vector3(
 					    ( mouseX / window.innerWidth ) * 2.,
 					    - ( mouseY / window.innerHeight ) * 2.,
@@ -346,14 +539,16 @@
 					pos.add( new THREE.Vector3(0, 0, -1.5) );
 
 					var delta = new THREE.Vector3(0, 0, 0);
-					delta.subVectors(pos, shipGeometry.position);
+					delta.subVectors(pos, ship.position);
 					delta.divideScalar(4.); 
 					delta.setY( 0.0 );
 					
-					shipGeometry.position.add(delta);
+					ship.position.add(delta);
 					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
-					shipGeometry.rotation.set(0, 0, angle);
+					ship.rotation.set(0, 0, angle);
 				}
+
+				// render
 
 				renderer.clear();
 				renderer.setDepthWrite( false );
