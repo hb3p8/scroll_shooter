@@ -303,9 +303,9 @@
 						newEnemy.velocity.set(0, 0, -0.3)
 						newEnemy.HP = 3;
 						if (newEnemy.position.x > 0)
-							newEnemy.accel.set(-0.003, 0, -0.001)
+							newEnemy.accel.set(-0.0005, 0, -0.001)
 						else 
-							newEnemy.accel.set(0.003, 0, -0.001)
+							newEnemy.accel.set(0.0005, 0, -0.001)
 						break;
 					};
 				};
@@ -400,7 +400,7 @@
 					};
 
 				});
-				enemyLoader.load( 'obj/fighter/fighter.obj', 'obj/fighter/enemy.mtl' );
+				enemyLoader.load( 'obj/enemy/enemy.obj', 'obj/enemy/enemy.mtl' );
 
 				setInterval(spawnEnemy, 2000);
 				setInterval(playerShoot, 200);
