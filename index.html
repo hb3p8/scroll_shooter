@@ -59,7 +59,7 @@
 			#define iterations 17
 			#define formuparam 0.530
 
-			#define volsteps 14
+			#define volsteps 5
 			#define stepsize 0.100
 
 			#define zoom   0.800
@@ -280,6 +280,7 @@
 
 					values_size[ v ] = 10;
 					values_color[ v ] = new THREE.Color( 0x00aa00 );
+					values_color[ v ].setHSL( 0.6, 0.7, 0.5 );
 
 					// if ( vertices[ v ].x < 0 )
 					// 	values_color[ v ].setHSL( 0.5 + 0.1 * ( v / vertices.length ), 0.7, 0.5 );
@@ -300,6 +301,7 @@
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 20.);
 						newEnemy.rotation.set(0., Math.PI, 0.);
 						newEnemy.velocity.set(0, 0, -0.3)
+						newEnemy.HP = 3;
 						if (newEnemy.position.x > 0)
 							newEnemy.accel.set(-0.003, 0, -0.001)
 						else 
@@ -401,7 +403,7 @@
 				enemyLoader.load( 'obj/fighter/fighter.obj', 'obj/fighter/enemy.mtl' );
 
 				setInterval(spawnEnemy, 2000);
-				setInterval(playerShoot, 500);
+				setInterval(playerShoot, 200);
 				setInterval(cleanBullets, 300);
 
 				//
@@ -493,9 +495,19 @@
 						vertices[i] = bullet.position.clone();
 						particleAttributes.size.value[ i ] = 20.;
 					//	if (bullet.fromPlayer)
-							particleAttributes.customColor.value[ i ] = new THREE.Color( 0xaa0000 );
+							particleAttributes.customColor.value[ i ] = new THREE.Color( 0xaaaa00 );
 						if (bullet.position.z > 20. || bullet.position.z < -20.  ) 
 							bullet.visible = false;
+
+						for (var j = 0; j < enemies.length; j++) {
+							var enemy =  enemies[j];
+							if( !enemy.visible ) continue;
+							var delta = enemy.position.clone().sub(bullet.position);
+							if( delta.lengthSq() < 2. ) {
+								enemy.HP -= 1;
+								bullet.visible = false;
+							}
+						}
 
 					} else {
 
@@ -518,7 +530,7 @@
 						var angle = clamp(enemies[i].velocity.x, -0.2, 0.2) / 0.2 * Math.PI / 5.;
 						enemies[i].rotation.set(0, Math.PI, angle);
 						// k += 1;
-						if (enemies[i].position.z < -20.) 
+						if (enemies[i].position.z < -20.  || enemies[i].HP <= 0) 
 							enemies[i].visible = false;
 					};
 				};
