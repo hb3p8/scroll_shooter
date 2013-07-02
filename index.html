@@ -30,7 +30,7 @@
 		<!-- Based on <a href="http://threejs.org" target="_blank">three.js</a> -->
 		</div>
 
-		<script src="js/three.min.js"></script>
+		<script src="js/three.js"></script>
 
 		<script src="js/loaders/MTLLoader.js"></script>
 		<script src="js/loaders/OBJMTLLoader.js"></script>
@@ -38,6 +38,7 @@
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 		<script src='js/libs/dat.gui.min.js'></script>
+		<script src='js/howler.min.js'></script>
 
 		<script id="vertexShader" type="x-shader/x-vertex">
 
@@ -157,6 +158,75 @@
 			}
 
 		</script>
+		
+				<script type="x-shader/x-vertex" id="spriteVertexShader">
+
+			attribute vec3 customColor;
+			attribute vec2 texCoord;
+			attribute float currentTime;
+			uniform float framesNumber;
+			uniform float frameTime;
+			
+			varying vec3 vColor;
+			varying vec2 texc;
+			
+			void main() {
+
+				vColor = customColor;
+				
+				//texc processing
+				
+				float current_frame = floor(currentTime / frameTime);
+				
+				if(framesNumber > 1.0)
+				{
+					if(texCoord == vec2(0.0,0.0))
+					{
+						texc = vec2(current_frame  / framesNumber, 0.0);
+					}
+					else if(texCoord == vec2(1.0,0.0))
+					{
+						texc = vec2((current_frame + 1.0) / framesNumber, 0.0 );
+					}
+					else if(texCoord == vec2(1.0,1.0))
+					{
+						texc = vec2((current_frame + 1.0) / framesNumber, 1.0);
+					}
+					else if(texCoord == vec2(0.0,1.0))
+					{
+						texc = vec2(current_frame / framesNumber, 1.0);
+					}
+				}
+				else
+				{
+					texc = texCoord;
+				}
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="spriteFragmentShader">
+
+			uniform sampler2D texture;
+
+			varying vec3 vColor;
+			varying vec2 texc;
+
+			void main() {
+
+				gl_FragColor = vec4( vColor, 1.0 );
+				vec4 intensity = texture2D( texture, texc );
+				gl_FragColor = gl_FragColor * intensity ;
+
+
+			}
+
+		</script>
 
 		<script>
 
@@ -182,7 +252,220 @@
 			var debugController;
 
 			var particles, particleUniforms, particleAttributes;
+			
+			var worldTime;
+			var currentFrameTime;
+			var frameDeltaTime;
+			
+			var bulletSprites = [];
+			
+			var batch_Sprite = {};
+			
+			//sounds ---------------
+			var themeMusic;
+			
+			var shootSound;
+			
+			//sounds END------------
+			
+			var playerShootTrigger;
+			
+			var playerShootTimeCounter;
+			
+			var PLAYER_SHOOT_TIMEOUT = 300;
+			
+			
 
+			// Animated sprite ---------------------
+			function AnimatedSprite(textureName){
+			
+
+				this.spriteAttributes  = {
+
+						customColor: {	type: 'v3', value: [] },
+						texCoord: { type: 'v2', value: [] },
+						currentTime: { type: 'f', value: [] }
+
+					};
+					
+				this.spriteUniforms = {
+
+						texture:   { type: "t", value: THREE.ImageUtils.loadTexture( textureName ) },
+						framesNumber:   { type: "f", value: 1.0 },
+						frameTime:   { type: "f", value: 0.0 }
+
+					};
+				
+				
+
+				this.shaderMaterial = new THREE.ShaderMaterial( {
+
+					uniforms: 		this.spriteUniforms,
+					attributes:     this.spriteAttributes ,
+					vertexShader:   document.getElementById( 'spriteVertexShader' ).textContent,
+					fragmentShader: document.getElementById( 'spriteFragmentShader' ).textContent,
+
+					//blending: 		THREE.AdditiveBlending,
+					dynamic:        true,
+					depthTest: 		false,
+					transparent:	true
+
+				});
+				
+				this.shaderMaterial.depthWrite = false;
+				
+				
+				this.textureName = '';
+				this.animationTime = 0;
+				this.framesNumber = 1;
+				this.frameTime = 0;
+				
+				this.geometry = new THREE.Geometry();
+				this.vertices = this.geometry.vertices;
+				this.colors = this.spriteAttributes.customColor.value;
+				this.texCoords = this.spriteAttributes.texCoord.value;
+				this.faces = this.geometry.faces;
+				
+				this.currentTime = this.spriteAttributes.currentTime.value;
+				this.framesNumber = this.spriteUniforms.framesNumber;
+				this.frameTime = this.spriteUniforms.frameTime;				
+				
+
+				
+				this.mesh = new THREE.Mesh( this.geometry, this.shaderMaterial );
+				
+			}
+			
+			AnimatedSprite.prototype.removeSprite = function(n){
+				this.currentTime.splice(n,4);
+				this.faces.splice(n,4);
+				this.vertices.splice(n,4);
+				this.colors.splice(n,4);
+				this.texCoords.splice(n,4);
+				
+				//this.mesh = new THREE.Mesh( this.geometry, this.shaderMaterial );
+			}
+			
+			AnimatedSprite.prototype.setSpriteParam = function(animationTime, framesNumber){
+				this.animationTime = animationTime;
+				this.framesNumber.value = framesNumber;
+				this.frameTime.value = Math.floor(animationTime / framesNumber);
+			}
+			
+			AnimatedSprite.prototype.updateTime = function(deltaTime){
+						
+				if(this.framesNumber.value > 1 && !isNaN(deltaTime)){
+					for(var i = 0; i < this.currentTime.length ; i += 4 ){
+						this.currentTime[i] = (deltaTime + this.currentTime[i]) % this.animationTime ;
+						this.currentTime[i + 1] = this.currentTime[i] ;
+						this.currentTime[i + 2] = this.currentTime[i] ;
+						this.currentTime[i + 3] = this.currentTime[i] ;
+					}
+					
+					this.spriteAttributes.currentTime.needsUpdate = true;
+				}
+
+			}
+			
+			AnimatedSprite.prototype.addSprite = function(pos, width, height){
+			
+				pos = pos || (new THREE.Vector3( 0.0,0.0,0.0  ));
+				width = width || 1.0;
+				height = height || 1.0;
+			
+				verticesLen = this.vertices.length ;
+			
+				this.vertices.push( (new THREE.Vector3( -10.0 * width,0.0,10.0 * height )).add(pos) );
+				this.vertices.push( (new THREE.Vector3( 10.0 * width,0.0,10.0 * height )).add(pos) );
+				this.vertices.push( (new THREE.Vector3( 10.0 * width,0.0,-10.0 * height )).add(pos) );
+				this.vertices.push( (new THREE.Vector3( -10.0 * width,0.0,-10.0 * height )).add(pos) );
+				
+				var normal = new THREE.Vector3( 0, 1, 0 );
+				var color = new THREE.Color( 0xffffff );
+				var face = new THREE.Face4( verticesLen, verticesLen + 1,verticesLen + 2,verticesLen + 3, normal, color, 0 );
+				
+				this.geometry.faces.push(face);
+
+				
+				this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
+				this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
+				this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
+				this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
+				
+				this.texCoords.push( new THREE.Vector2( 0.0,0.0 ));
+				this.texCoords.push( new THREE.Vector2( 1.0,0.0 ));
+				this.texCoords.push( new THREE.Vector2( 1.0,1.0 ));
+				this.texCoords.push( new THREE.Vector2( 0.0,1.0 ));
+				
+				this.currentTime.push(0.0);
+				this.currentTime.push(0.0);
+				this.currentTime.push(0.0);
+				this.currentTime.push(0.0);
+				
+				//this.mesh = new THREE.Mesh( this.geometry, this.shaderMaterial );
+			
+			}
+			
+			AnimatedSprite.prototype.rotate = function(n, angle){
+			
+				var axis = new THREE.Vector3( 0.0,0.0,0.0 );
+				
+				n *= 4; 				
+					
+				for(var i = 0; i < 4; i++){
+					axis.add(this.vertices[n + i]);
+				}
+				axis.divideScalar(4.0);
+				
+				for(var i = 0; i < 4; i++){
+					this.vertices[n + i].sub(axis); 
+					//this.vertices[n + i].x = this.vertices[n + i].x * Math.cos(angle) - this.vertices[n + i].z * Math.sin(angle);
+					//this.vertices[n + i].z = this.vertices[n + i].x * Math.sin(angle) + this.vertices[n + i].z * Math.cos(angle);
+					 
+					this.vertices[n + i].applyAxisAngle(new THREE.Vector3( 0.0,1.0,0.0 ) ,angle);
+					
+					this.vertices[n + i].add(axis);
+				}
+				
+				this.mesh.geometry.verticesNeedUpdate = true;
+		
+			}
+			
+			AnimatedSprite.prototype.setRotation = function(n, angle, width, height){
+			
+				var axis = new THREE.Vector3( 0.0,0.0,0.0 );				
+				
+				n *= 4; 	
+				
+				for(var i = 0; i < 4; i++){
+					axis.add(this.vertices[n + i]);
+				}
+				axis.divideScalar(4.0);
+				
+				this.vertices[n] = (new THREE.Vector3( -10.0 * width,0.0,10.0 * height )) ;
+				this.vertices[n + 1] = (new THREE.Vector3( 10.0 * width,0.0,10.0 * height ));
+				this.vertices[n + 2] = (new THREE.Vector3( 10.0 * width,0.0,-10.0 * height ));
+				this.vertices[n + 3] = (new THREE.Vector3( -10.0 * width,0.0,-10.0 * height ));
+				
+				for(var i = 0; i < 4; i++){
+					this.vertices[n + i].applyAxisAngle(new THREE.Vector3( 0.0,1.0,0.0 ) ,angle);
+					this.vertices[n + i].add(axis);
+				}
+				
+				this.mesh.geometry.verticesNeedUpdate = true;
+				
+			}
+			
+			// Animated sprite END---------------------
+			
+			updateTime = function(){
+				worldTime += 20;
+			}
+			
+			var bullet_sprites;
+			
+			
+				
 			init();
 			animate();
 
@@ -255,7 +538,7 @@
 					depthTest: 		false,
 					transparent:	true
 
-				});
+				}); 
 
 
 				var radius = 10;
@@ -280,7 +563,7 @@
 
 					values_size[ v ] = 10;
 					values_color[ v ] = new THREE.Color( 0x00aa00 );
-					values_color[ v ].setHSL( 0.6, 0.7, 0.5 );
+					values_color[ v ].setHSL( 0.9, 0.7, 0.5 );
 
 					// if ( vertices[ v ].x < 0 )
 					// 	values_color[ v ].setHSL( 0.5 + 0.1 * ( v / vertices.length ), 0.7, 0.5 );
@@ -321,6 +604,8 @@
 
 
 			function init() {
+			
+				worldTime = 0;
 
 				container = document.createElement( 'div' );
 				document.body.appendChild( container );
@@ -362,7 +647,8 @@
 
 				mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), material );
 				planeScene.add( mesh );
-
+				
+				
 				//camera.lookAt( scene.position );
 
 				var ambient = new THREE.AmbientLight( 0xffffff );
@@ -403,11 +689,11 @@
 				enemyLoader.load( 'obj/enemy/enemy.obj', 'obj/enemy/enemy.mtl' );
 
 				setInterval(spawnEnemy, 2000);
-				setInterval(playerShoot, 200);
+				//setInterval(playerShoot, 200);
 				setInterval(cleanBullets, 300);
-
-				//
-
+				setInterval(updateTime, 20);
+				
+				
 				initParticles();
 
 				//
@@ -433,15 +719,54 @@
 				gui.add( debugController, "enabled" ).onChange( debugUpdate );
 
 
-
+				// Event listeners
 				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-
-				//
-
 				window.addEventListener( 'resize', onWindowResize, false );
+				
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				
+				
+				//Triggers and timeouts ------------------
+				
+				playerShootTrigger = false;
+			
+				playerShootTimeCounter = 0;
+				
+				//Triggers and timeouts END --------------
+				
+				//animated sprites test ------------------
+				bullet_sprites = new AnimatedSprite("sprites/explosion3.png");
+				bullet_sprites.addSprite(new THREE.Vector3( 13.0,0.0,0.0  ),1.5,0.5);
+				bullet_sprites.removeSprite(0);
+				bullet_sprites.addSprite(new THREE.Vector3( 13.0,0.0,5.0  ),1.0,1.0);
+				bullet_sprites.addSprite(new THREE.Vector3( 0.0,0.0,0.0  ),1.0,1.0);
+				
+				bullet_sprites.setRotation(1,3.14/2,1.0,1.0);
+				
+				/*for(var i = 0; i < 80;i++){
+					for (var j = 0; j < 40; j++){
+						bullet_sprites.addSprite(new THREE.Vector3( -30.0 + i/1 , 0,-10.0 + j/1  ),0.2,0.2);
+					}
+				}*/
+				
+				
+				scene.add(bullet_sprites.mesh);
+				bullet_sprites.rotate(0,3.14/3);
+				
+				bullet_sprites.setSpriteParam(300,10);
+				//bullet_sprites.rotate(1,3.14/3);
+				
+				
+				
+				shootSound = new Howl({
+					urls: ['sounds/Laser1.ogg']
+				});
+				
 
 			}
 
+			//Events handlers -------------------------------
 			function onWindowResize() {
 
 				windowHalfX = window.innerWidth / 2;
@@ -463,11 +788,25 @@
 				mouseY = ( event.clientY - windowHalfY ) / 2;
 
 			}
+			
+			function onDocumentMouseDown( event ) {
+			
+			playerShootTrigger = true;
+				
+			}
 
-			//
+			function onDocumentMouseUp( event ) {
+			
+			playerShootTrigger = false;
+				
+			}
+			
+			
+
+			//Events Handlers END ----------------------------
 
 			function animate() {
-
+			
 				requestAnimationFrame( animate );
 				render();
 				stats.update();
@@ -481,10 +820,40 @@
 
 			function render() {
 				if (!debugController.enabled) return;
+				
+				//world Time processing
+				frameDeltaTime = worldTime - currentFrameTime;
+				currentFrameTime = worldTime;
 
+				PLAYER_SHOOT_TIMEOUT
+				
+				if (!isNaN(frameDeltaTime))playerShootTimeCounter += frameDeltaTime;
+
+				//triggers and timeouts processing
+				
+				
+				if (playerShootTrigger === true && playerShootTimeCounter > PLAYER_SHOOT_TIMEOUT){
+					playerShoot();
+					
+					playerShootTimeCounter = 0;
+					shootSound.play();					
+				}
+			
+				
+				//Triggers and timeouts END
+				
+				//for sprite test
+
+				bullet_sprites.rotate(0,0.05);
+				bullet_sprites.updateTime(frameDeltaTime);
+				
+				//sprite test end
+				
+				
 				uniforms.time.value += 0.05;
 
 				// update bullets
+				
 
 				var vertices = particles.geometry.vertices;
 				for( var i = 0; i < particleAttributes.size.value.length; i++ ) {
@@ -568,6 +937,8 @@
 				renderer.setDepthWrite( true );
 
 				renderer.render( scene, camera );
+				
+				
 
 			}
 
