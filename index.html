@@ -312,7 +312,6 @@
 			}
 
 			function playerShoot() {
-				// console.log(bullets.length);
 				var velocity = new THREE.Vector3(0, 0, 0.8);
 				var firstPosition = new THREE.Vector3(1.6, 0, 2.0);
 				var secondPosition = new THREE.Vector3(-1.6, 0, 2.0);
@@ -324,6 +323,13 @@
 				shootSound.play();
 			}
 
+			function enemyShoot(enemy) {
+				var velocity = new THREE.Vector3(0, 0, -0.6);
+				var bullet = new Bullet(enemy.position.clone(), velocity, false);
+				bullets.push( bullet ); 
+				// shootSound.play();
+			}	
+
 			function spawnEnemy() {
 				var newEnemy;
 				for (var i = 0; i < enemies.length; i++) {
@@ -333,6 +339,7 @@
 						newEnemy.rotation.set(0., Math.PI, 0.);
 						newEnemy.velocity.set(0, 0, -0.3)
 						newEnemy.HP = 3;
+						newEnemy.shootTimer.start();
 				/*		if (newEnemy.position.x > 0)
 							newEnemy.accel.set(-0.0005, 0, -0.001)
 						else 
@@ -429,6 +436,11 @@
 						enemy.visible = false;
 						enemy.velocity = new THREE.Vector3(0, 0, 0);
 						enemy.accel = new THREE.Vector3(0, 0, 0);
+						enemy.shootTimer = new ThresoldTimer(0.95, false, 
+							function(e){ return function(){ enemyShoot(e); } }(enemy) );
+						enemy.shootTimer.stop();
+						timers.push(enemy.shootTimer);
+
 						scene.add( enemy );
 						enemies.push( enemy );
 
@@ -610,11 +622,12 @@
 						if (bullet.position.z > 27. || bullet.position.z < -27.  ) 
 							bullet.visible = false;
 
+						if( !bullet.fromPlayer ) continue;
 						for (var j = 0; j < enemies.length; j++) {
 							var enemy =  enemies[j];
 							if( !enemy.visible ) continue;
 							var delta = enemy.position.clone().sub(bullet.position);
-							if( delta.lengthSq() < 2. ) {
+							if( delta.lengthSq() < 2.5 ) {
 								enemy.HP -= 1;
 								bullet.visible = false;
 							}
@@ -634,12 +647,15 @@
 				for (var i = 0; i < enemies.length; i++) {
 					if (enemies[i].visible === true) {
 						enemies[i].position.add(enemies[i].velocity);
-						enemies[i].velocity.add(enemies[i].accel);
-						var angle = clamp(enemies[i].velocity.x, -0.2, 0.2) / 0.2 * Math.PI / 5.;
-						enemies[i].rotation.set(0, Math.PI, angle);
+				//		enemies[i].velocity.add(enemies[i].accel);
+				//		var angle = clamp(enemies[i].velocity.x, -0.2, 0.2) / 0.2 * Math.PI / 5.;
+				//		enemies[i].rotation.set(0, Math.PI, angle);
 						// k += 1;
-						if (enemies[i].position.z < -26.  || enemies[i].HP <= 0) 
+						if (enemies[i].position.z < -26.  || enemies[i].HP <= 0)  {
+							enemies[i].shootTimer.stop();
 							enemies[i].visible = false;
+						}
+
 					};
 				};
 
