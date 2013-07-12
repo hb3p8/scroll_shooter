@@ -213,6 +213,10 @@
 			var hudSprite_1;
 			
 			var shieldSphere;
+
+			var clock;
+			var timers = [];
+			var playerShootTimer;
 			
 			
 			
@@ -253,10 +257,30 @@
 			}
 			
 
+			function ThresoldTimer(_thresold, _active, _callback){
+				this.thresold = _thresold || 1.0;
+				this.active = _active || true;
+				this.currentTime = 0.;
+				this.callback = _callback || function(){};
+			}
 
-			updateTime = function(){
-				worldTime += 20;
-			}		
+			ThresoldTimer.prototype.start = function(){
+				this.active = true;
+			}
+
+			ThresoldTimer.prototype.stop = function(){
+				this.active = false;
+			}
+
+			ThresoldTimer.prototype.update = function(delta){
+				if (this.active) {
+					this.currentTime += delta;
+					if ( this.currentTime > this.thresold ) { 
+						this.currentTime = 0.;
+						this.callback();
+					}
+				}
+			}
 
 			// init();
 			// animate();
@@ -301,6 +325,7 @@
 
 				bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
 				bullets.push( bullet );
+				shootSound.play();
 			}
 
 			function spawnEnemy() {
@@ -416,14 +441,14 @@
 				});
 				enemyLoader.load( 'obj/enemy/enemy.obj', 'obj/enemy/enemy.mtl' );
 
-				setInterval(spawnEnemy, 2000);
-				setInterval(cleanBullets, 300);
-				setInterval(updateTime, 20);
-				
-				
-				//initParticles();
 
-				//
+				timers.push( new ThresoldTimer(2.0, true, spawnEnemy) );
+				timers.push( new ThresoldTimer(0.1, true, cleanBullets) );
+
+				playerShootTimer = new ThresoldTimer(0.15, false, playerShoot);
+				playerShootTimer.stop();
+				timers.push( playerShootTimer );				
+				
 
 				renderer = new THREE.WebGLRenderer( { 
 					canvas: document.getElementById("canvas"),
@@ -456,14 +481,9 @@
 				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
 				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
 				
-				
-				//Triggers and timeouts ------------------
-				
-				playerShootTrigger = false;
-			
-				playerShootTimeCounter = 0;
-				
-				//Triggers and timeouts END --------------
+
+
+				clock = new THREE.Clock( true );
 				
 				//sprites init
 				bullet_sprites = new AnimatedSprite("sprites/blueLaserRay.png");
@@ -542,13 +562,13 @@
 			
 			function onDocumentMouseDown( event ) {
 			
-			playerShootTrigger = true;
+				playerShootTimer.active = true;
 				
 			}
 
 			function onDocumentMouseUp( event ) {
 			
-			playerShootTrigger = false;
+				playerShootTimer.active = false;
 				
 			}
 			
@@ -569,31 +589,21 @@
     			return Math.max(min, Math.min(max, val))
 			}		
 
+
+
 			function render() {
 				if (!debugController.enabled) return;
 				
-				//world Time processing
-				frameDeltaTime = worldTime - currentFrameTime;
-				currentFrameTime = worldTime;
-				
-				if (!isNaN(frameDeltaTime))playerShootTimeCounter += frameDeltaTime;
-				
+				var frameDeltaTime = clock.getDelta();
 
 				//triggers and timeouts processing
-				
-				
-				if (playerShootTrigger === true && playerShootTimeCounter > PLAYER_SHOOT_TIMEOUT){
-					playerShoot();
-					
-					playerShootTimeCounter = 0 /*playerShootTimeCounter % PLAYER_SHOOT_TIMEOUT*/;
-					shootSound.play();					
-				}
-			
+				for (var i = 0; i < timers.length; i++) {
+					timers[i].update(frameDeltaTime);
+				};	
 							
-				uniforms.time.value += 0.05;
+				uniforms.time.value = clock.oldTime * 0.005;
 
-				// update bullets
-				
+				// update bullets				
 				for( var i = 0; i < bullet_sprites.vertices.length / 4; i++ ) {
 					var bullet = bullets[i]
 					if (bullet && bullet.visible ) {
@@ -601,9 +611,9 @@
 						bullet.position.add(bullet.velocity);
 						bullet_sprites.setSpritePosition(i, bullet.position.x, bullet.position.z);
 
-						if (bullet.position.z > 40. || bullet.position.z < -40.  ) 
+						if (bullet.position.z > 30. || bullet.position.z < -30.  ) 
 							bullet.visible = false;
-
+/*
 						for (var j = 0; j < enemies.length; j++) {
 							var enemy =  enemies[j];
 							if( !enemy.visible ) continue;
@@ -612,7 +622,7 @@
 								enemy.HP -= 1;
 								bullet.visible = false;
 							}
-						}
+						}*/
 
 					} else {
 
@@ -654,9 +664,9 @@
 
 					var delta = new THREE.Vector3(0, 0, 0);
 					delta.subVectors(pos, ship.position);
-					//delta.divideScalar(12.); 
-					delta.x /= 16;
-					delta.z /= 25;
+					delta.divideScalar(16.); 
+					// delta.x /= 16;
+					// delta.z /= 25;
 					delta.setY( 0.0 );
 					
 					ship.position.add(delta);
