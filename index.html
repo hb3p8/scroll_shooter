@@ -265,6 +265,8 @@
 			}
 
 			ThresoldTimer.prototype.start = function(){
+				this.currentTime = 0.;
+				this.callback();
 				this.active = true;
 			}
 
@@ -300,16 +302,10 @@
 			}
 
 			function cleanBullets() {
-				// console.log("cleanup");
-
-				bullets.sort(function(a, b) { 
-					if(a.visible === b.visible) return 0; else return b.visible;
-				})
 
 				for (var i = 0; i < bullets.length; i++) {
 					if(!bullets[i].visible) {
-						bullets.remove(i, -1);
-						break;
+						bullets.splice(i, 1); // TODO: сделать бы поэффективнее
 					}
 				};
 
@@ -562,13 +558,13 @@
 			
 			function onDocumentMouseDown( event ) {
 			
-				playerShootTimer.active = true;
+				playerShootTimer.start();
 				
 			}
 
 			function onDocumentMouseUp( event ) {
 			
-				playerShootTimer.active = false;
+				playerShootTimer.stop();				
 				
 			}
 			
@@ -611,9 +607,9 @@
 						bullet.position.add(bullet.velocity);
 						bullet_sprites.setSpritePosition(i, bullet.position.x, bullet.position.z);
 
-						if (bullet.position.z > 30. || bullet.position.z < -30.  ) 
+						if (bullet.position.z > 27. || bullet.position.z < -27.  ) 
 							bullet.visible = false;
-/*
+
 						for (var j = 0; j < enemies.length; j++) {
 							var enemy =  enemies[j];
 							if( !enemy.visible ) continue;
@@ -622,7 +618,7 @@
 								enemy.HP -= 1;
 								bullet.visible = false;
 							}
-						}*/
+						}
 
 					} else {
 
