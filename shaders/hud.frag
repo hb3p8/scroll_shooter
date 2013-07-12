@@ -1,3 +1,4 @@
+precision mediump float;
 uniform sampler2D texture;
 uniform float hull;
 uniform float energy; 
