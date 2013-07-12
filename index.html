@@ -44,469 +44,127 @@
 		</div>
 
 
-		<script src="js/three.js"></script>
+		<script src="js/libs/three.js"></script>
 
 		<script src="js/loaders/MTLLoader.js"></script>
 		<script src="js/loaders/OBJMTLLoader.js"></script>
 
-		<script src="js/Detector.js"></script>
+		<script src="js/libs/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 		<script src='js/libs/dat.gui.min.js'></script>
-		<script src='js/howler.min.js'></script>
-
-		<script id="vertexShader" type="x-shader/x-vertex">
-
-			void main()	{
-
-				gl_Position = vec4( position, 1.0 );
-
-			}
-
-		</script>
-
-		<script id="fragmentShader" type="x-shader/x-fragment">
-
-			uniform vec2 resolution;
-			uniform float time;
-
-			// Star Nest by Kali
-
-			#define iterations 17
-			#define formuparam 0.530
-
-			#define volsteps 10
-			#define stepsize 0.100
-
-			#define zoom   0.800
-			#define tile   0.850
-			#define speed  0.015 
-
-			#define brightness 0.0015
-			#define darkmatter 0.300
-			#define distfading 0.760
-			#define saturation 0.800
-
-			void main(void)
-			{
-				//get coords and direction
-				vec2 uv=gl_FragCoord.xy/resolution.xy-0.5;
-				uv *= 0.8;
-				uv.y*=resolution.y/resolution.x;
-				vec3 dir=vec3(uv*zoom,1.);
-				float time=time*speed+.25;
-
-				vec3 from=vec3(1.,.5,0.5);
-				from+=vec3(0.,time,-2.);
-
-				
-				//volumetric rendering
-				float s=0.1,fade=1.;
-				vec3 v=vec3(0.);
-				for (int r=0; r<volsteps; r++) {
-					vec3 p=from+s*dir*.5;
-					p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
-					float pa,a=pa=0.;
-					for (int i=0; i<iterations; i++) { 
-						p=abs(p)/dot(p,p)-formuparam; // the magic formula
-						a+=abs(length(p)-pa); // absolute sum of average change
-						pa=length(p);
-					}
-					float dm=max(0.,darkmatter-a*a*.001); //dark matter
-					a*=a*a; // add contrast
-					if (r>3) fade*=1.-dm; // dark matter, don't render near
-					//v+=vec3(dm,dm*.5,0.);
-					v+=fade;
-					v+=vec3(s,s*s,s*s*s*s)*a*brightness*fade; // coloring based on distance
-					fade*=distfading; // distance fading
-					s+=stepsize;
-				}
-				v=mix(vec3(length(v)),v,saturation); //color adjust
-				gl_FragColor = vec4(v*.01,1.);	
-				
-			}
-
-		</script>
-
-		<script type="x-shader/x-vertex" id="particleVertexShader">
-
-			uniform float amplitude;
-			attribute float size;
-			attribute vec3 customColor;
-
-			varying vec3 vColor;
-
-			void main() {
-
-				vColor = customColor;
-
-				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
-				// gl_PointSize = size;
-				gl_PointSize = size * ( 300.0 / length( mvPosition.xyz ) );
-
-				gl_Position = projectionMatrix * mvPosition;
-
-			}
-
-		</script>
-
-		<script type="x-shader/x-fragment" id="particleFragmentShader">
-
-			uniform vec3 color;
-			uniform sampler2D texture;
-
-			varying vec3 vColor;
-
-			void main() {
-
-				gl_FragColor = vec4( color * vColor, 1.0 );
-				vec2 t = gl_PointCoord;
-				// float angle = 3.1415 / 3.;
-				// float s = sin(angle);
-				// float c = cos(angle);
-				// t -= vec2(0.5, 0.5);
-				// t = vec2(t.x * c - t.y * s, t.x * s + t.y * c);
-				// t += vec2(0.5, 0.5);
-				vec4 intensity = texture2D( texture, t );
-				gl_FragColor = gl_FragColor * intensity * intensity * intensity * 2. ;
-
-			}
-
-		</script>
+		<script src='js/libs/howler.min.js'></script>
+		<script src='js/libs/jquery-1.10.2.js'></script>
 		
-		<script type="x-shader/x-vertex" id="spriteVertexShader">
 
-			attribute vec3 customColor;
-			attribute vec2 texCoord;
-			attribute float currentTime;
-			uniform float framesNumber;
-			uniform float frameTime;
-			
-			varying vec3 vColor;
-			varying vec2 texc;
-			
-			void main() {
-
-				vColor = customColor;
-				
-				//texc processing
-				
-				float current_frame = floor(currentTime / frameTime);
-				
-				if(framesNumber > 1.0)
-				{
-					texc = vec2((current_frame + texCoord.x) / framesNumber, texCoord.y);
-				}
-				else
-				{
-					texc = texCoord;
-				}
-
-				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
-				gl_Position = projectionMatrix * mvPosition;
-
-			}
-
-		</script>
-
-		<script type="x-shader/x-fragment" id="spriteFragmentShader">
-
-			uniform sampler2D texture;
-
-			varying vec3 vColor;
-			varying vec2 texc;
-
-			void main() {
-
-				gl_FragColor = vec4( vColor, 1.0 );
-				vec4 intensity = texture2D( texture, texc );
-				gl_FragColor = gl_FragColor * intensity ;
-
-
-			}
-
-		</script>
+		<script data-name="bg" type="x-shader/x-vertex" data-src='shaders/bg_vert.glsl'></script>
+		<script data-name="bg" type="x-shader/x-fragment" data-src='shaders/bg_frag.glsl'></script>
 		
-		<script type="x-shader/x-vertex" id="explosionVertexShader">
-
-			//
-			// GLSL textureless classic 3D noise "cnoise",
-			// with an RSL-style periodic variant "pnoise".
-			// Author:  Stefan Gustavson (stefan.gustavson@liu.se)
-			// Version: 2011-10-11
-			//
-			// Many thanks to Ian McEwan of Ashima Arts for the
-			// ideas for permutation and gradient selection.
-			//
-			// Copyright (c) 2011 Stefan Gustavson. All rights reserved.
-			// Distributed under the MIT license. See LICENSE file.
-			// https://github.com/ashima/webgl-noise
-			//
-
-			vec3 mod289(vec3 x)
-			{
-			  return x - floor(x * (1.0 / 289.0)) * 289.0;
-			}
-
-			vec4 mod289(vec4 x)
-			{
-			  return x - floor(x * (1.0 / 289.0)) * 289.0;
-			}
-
-			vec4 permute(vec4 x)
-			{
-			  return mod289(((x*34.0)+1.0)*x);
-			}
-
-			vec4 taylorInvSqrt(vec4 r)
-			{
-			  return 1.79284291400159 - 0.85373472095314 * r;
-			}
-
-			vec3 fade(vec3 t) {
-			  return t*t*t*(t*(t*6.0-15.0)+10.0);
-			}
-
-			// Classic Perlin noise, periodic variant
-			float pnoise(vec3 P, vec3 rep)
-			{
-			  vec3 Pi0 = mod(floor(P), rep); // Integer part, modulo period
-			  vec3 Pi1 = mod(Pi0 + vec3(1.0), rep); // Integer part + 1, mod period
-			  Pi0 = mod289(Pi0);
-			  Pi1 = mod289(Pi1);
-			  vec3 Pf0 = fract(P); // Fractional part for interpolation
-			  vec3 Pf1 = Pf0 - vec3(1.0); // Fractional part - 1.0
-			  vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
-			  vec4 iy = vec4(Pi0.yy, Pi1.yy);
-			  vec4 iz0 = Pi0.zzzz;
-			  vec4 iz1 = Pi1.zzzz;
-
-			  vec4 ixy = permute(permute(ix) + iy);
-			  vec4 ixy0 = permute(ixy + iz0);
-			  vec4 ixy1 = permute(ixy + iz1);
-
-			  vec4 gx0 = ixy0 * (1.0 / 7.0);
-			  vec4 gy0 = fract(floor(gx0) * (1.0 / 7.0)) - 0.5;
-			  gx0 = fract(gx0);
-			  vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
-			  vec4 sz0 = step(gz0, vec4(0.0));
-			  gx0 -= sz0 * (step(0.0, gx0) - 0.5);
-			  gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-
-			  vec4 gx1 = ixy1 * (1.0 / 7.0);
-			  vec4 gy1 = fract(floor(gx1) * (1.0 / 7.0)) - 0.5;
-			  gx1 = fract(gx1);
-			  vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-			  vec4 sz1 = step(gz1, vec4(0.0));
-			  gx1 -= sz1 * (step(0.0, gx1) - 0.5);
-			  gy1 -= sz1 * (step(0.0, gy1) - 0.5);
-
-			  vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
-			  vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
-			  vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
-			  vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
-			  vec3 g001 = vec3(gx1.x,gy1.x,gz1.x);
-			  vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
-			  vec3 g011 = vec3(gx1.z,gy1.z,gz1.z);
-			  vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-
-			  vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-			  g000 *= norm0.x;
-			  g010 *= norm0.y;
-			  g100 *= norm0.z;
-			  g110 *= norm0.w;
-			  vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-			  g001 *= norm1.x;
-			  g011 *= norm1.y;
-			  g101 *= norm1.z;
-			  g111 *= norm1.w;
-
-			  float n000 = dot(g000, Pf0);
-			  float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
-			  float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
-			  float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
-			  float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
-			  float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
-			  float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
-			  float n111 = dot(g111, Pf1);
-
-			  vec3 fade_xyz = fade(Pf0);
-			  vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
-			  vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
-			  float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x); 
-			  return 2.2 * n_xyz;
-			}
-
-			varying vec2 vUv;
-			varying vec3 pos;
-			varying float ao;
-			uniform float time;
-			uniform float weight;
-			varying float d;
-
-			float stripes( float x, float f) {
-				float PI = 3.14159265358979323846264;
-				float t = .5 + .5 * sin( f * 2.0 * PI * x);
-				return t * t - .5;
-			}
-			
-			float turbulence( vec3 p ) {
-				float w = 100.0;
-				float t = -.5;
-				for (float f = 1.0 ; f <= 10.0 ; f++ ){
-					float power = pow( 2.0, f );
-					t += abs( pnoise( vec3( power * p ), vec3( 10.0, 10.0, 10.0 ) ) / power );
-				}
-				return t;
-			}
-
-			void main() {
-
-				vUv = uv;
-			
-				
-				pos = position;
-
-				float noise = 10.0 *  -.10 * turbulence( .5 * normal + time );
-
-				float displacement = - weight * noise;
-				displacement += 5.0 * pnoise( 0.05 * position + vec3( 2.0 * time ), vec3( 100.0 ) );
-				
-				ao = noise;
-				vec3 newPosition = position + normal * vec3( displacement );
-				gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
-			
-			}
-
-			</script>
-			
-			<script type="x-shader/x-vertex" id="explosionFragmentShader">
-
-				varying vec2 vUv;
-				uniform sampler2D tExplosion;
-				//varying vec3 vReflect;
-				varying vec3 pos;
-				varying float ao;
-				varying float d;
-				float PI = 3.14159265358979323846264;
-
-				float random(vec3 scale,float seed){return fract(sin(dot(gl_FragCoord.xyz+seed,scale))*43758.5453+seed);}
-
-				void main() {
-
-					vec3 color = texture2D( tExplosion, vec2( 0, 1.0 - 1.3 * ao + .01 * random(vec3(12.9898,78.233,151.7182),0.0) ) ).rgb;
-					gl_FragColor = vec4( color.rgb, 0.5 );
-
-				}
-			
-			</script>
-			
-		<script type="x-shader/x-vertex" id="hudVertexShader">
-
-			attribute vec2 texCoord;
-			
-			varying vec2 texc;
-			
-			void main() {
-
-				texc = texCoord;
-
-				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
-				gl_Position = projectionMatrix * mvPosition;
-
-			}
-
-		</script>
-
-		<script type="x-shader/x-fragment" id="hudFragmentShader">
-
-			uniform sampler2D texture;
-			uniform float hull;
-			uniform float energy; 
-			
-			varying vec2 texc;
-
-			float PI = 3.14159265358979323846264;
-			
-			void main() {
-
-				//vec4 intensity = texture2D( texture, texc );
-				
-				float radius = sqrt(texc.y * texc.y  + texc.x * texc.x);
-			
-				float armor = 1.0; // типа заглушка, этими 2 переменными задавть уровень энергии и брони от 0 до 1 (под них 2 юниформа есть) )
-				float h = 1.0;
-				
-				if(radius < 0.7)
-				{
-					gl_FragColor.rgb = vec3(0.0, 0.8, 1.0) * (1.0 - radius * radius * 1.6) * (armor + 0.35);
-					gl_FragColor.w = 1.0 * armor + (1.0 - radius * radius * 1.6);
-				}
-				else if(radius < 0.95)
-				{
-					radius -= 0.825;
-					radius = abs(radius);
-					
-					vec2 tex_vec = normalize(texc);
-					float angle = asin(tex_vec.y);
-					
-					if(angle < PI / 2.0 * h)
-					{
-						gl_FragColor.rgb = vec3(0.9 , 0.1, 0.1) * (1.0 - (radius * radius * radius) * 400.0) * (angle);
-						gl_FragColor.w = 0.95;
-					}
-					else
-					{
-						gl_FragColor = vec4(0.0,0.0,0.0,0.1);
-					}					
-				}
-				else 
-				{
-					gl_FragColor = vec4(0.0,0.0,0.0,0.0);
-				}
-
-			}
-
-		</script>
+		<script data-name="sprite" type="x-shader/x-vertex" data-src='shaders/sprite_vert.glsl'></script>
+		<script data-name="sprite" type="x-shader/x-fragment" data-src='shaders/sprite_frag.glsl'></script>
 		
-		<script type="x-shader/x-vertex" id="shieldVertexShader">
-
-			attribute vec2 texCoord;
-			
-			varying vec2 texc;
-			
-			void main() {
-
-				texc = texCoord;
-
-				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-
-				gl_Position = projectionMatrix * mvPosition;
-
-			}
-
-		</script>
-		
-		<script type="x-shader/x-fragment" id="shieldFragmentShader">
-
-			uniform sampler2D texture;
-			
-			varying vec2 texc;
-		
-			void main() {
-
-					gl_FragColor = vec4(0.0,0.0,0.0,1.0);
-
-			}
-			
-		</script>
-
+		<script data-name="hud" type="x-shader/x-vertex" data-src='shaders/hud_vert.glsl'></script>
+		<script data-name="hud" type="x-shader/x-fragment" data-src='shaders/hud_frag.glsl'></script>
 
 		<script>
 
-		  if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var shaders = {};
+
+			// on doc ready load them in
+			$(document).ready(function(){
+
+				// only bother if we think we support
+				// WebGL in the browser
+				if(Detector.webgl) {
+					
+					// $("#loading").show();
+					
+					// get all the shaders from the DOM
+					var fragmentShaders = $('script[type="x-shader/x-fragment"]');
+					var vertexShaders	= $('script[type="x-shader/x-vertex"]');
+					var shaderCount		= fragmentShaders.length + vertexShaders.length;
+					
+					/**
+					 * Checks if we have finished loading
+					 * all of the shaders in the DOM
+					 */
+					function checkForComplete() {
+						if(!shaderCount) {
+							
+							init();
+							animate();
+						}
+					}
+					
+					/**
+					 * Loads a shader using AJAX
+					 * 
+					 * @param {Object} The script tag from the DOM
+					 * @param {String} The type of shader [vertex|fragment]
+					 */
+					function loadShader(shader, type) {
+						
+						// wrap up the shader for convenience
+						var $shader = $(shader);
+						
+						// request the file over AJAX
+						$.ajax({
+							url: $shader.data('src'),
+							dataType: 'text',
+							context: {
+								name: $shader.data('name'),
+								type: type
+							},
+							complete: processShader
+						});
+					}
+					
+					/**
+					 * Processes a shader that comes back from
+					 * the AJAX and stores it in the Shaders
+					 * Object for later on
+					 * 
+					 * @param {Object} The jQuery XHR object
+					 * @param {String} The response text, e.g. success, error
+					 */
+					function processShader(jqXHR, textStatus) {
+						//debugger
+						
+						// one down... some to go?
+						shaderCount--;
+						
+						// create a placeholder if needed
+						if(!shaders[this.name]) {
+							shaders[this.name] = {
+								vertex: '',
+								fragment: ''
+							};
+						}
+						
+						// store it and check if we're done
+						shaders[this.name][this.type] = jqXHR.responseText;
+						checkForComplete();
+					}
+					
+					// load the fragment shaders
+					for(var f = 0; f < fragmentShaders.length; f++) {
+						var fShader = fragmentShaders[f];
+						loadShader(fShader, 'fragment');
+					}
+					
+					// and the vertex shaders
+					for(var v = 0; v < vertexShaders.length; v++) {
+						var vShader = vertexShaders[v];
+						loadShader(vShader, 'vertex');
+					}
+					
+					// there may be none so just
+					// check that here
+					checkForComplete();
+				} else {
+					Detector.addGetWebGLMessage();
+				}
+			});
 
 			var container, stats;
 
@@ -560,7 +218,7 @@
 			
 			function Shield(textureName){
 			
-
+/*
 				this.spriteAttributes  = {
 
 					};
@@ -592,6 +250,7 @@
 				this.shaderMaterial.depthWrite = false;
 							
 				this.mesh = new THREE.Mesh( new THREE.IcosahedronGeometry( 15, 5 ), this.shaderMaterial );
+			*/
 			}
 			
 			function HudSprite(textureName){
@@ -616,8 +275,8 @@
 
 					uniforms: 		this.spriteUniforms,
 					attributes:     this.spriteAttributes ,
-					vertexShader:   document.getElementById( 'hudVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'hudFragmentShader' ).textContent,
+					vertexShader:   shaders["hud"].vertex,
+					fragmentShader: shaders["hud"].fragment,
 
 					//blending: 		THREE.AdditiveBlending,
 					dynamic:        true,
@@ -688,8 +347,8 @@
 
 					uniforms: 		this.spriteUniforms,
 					attributes:     this.spriteAttributes ,
-					vertexShader:   document.getElementById( 'spriteVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'spriteFragmentShader' ).textContent,
+					vertexShader:   shaders["sprite"].vertex,
+					fragmentShader: shaders["sprite"].fragment,
 
 					//blending: 		THREE.AdditiveBlending,
 					dynamic:        true,
@@ -883,8 +542,8 @@
 			
 			
 				
-			init();
-			animate();
+			// init();
+			// animate();
 
 			Array.prototype.remove = function(from, to) {
 			  var rest = this.slice((to || from) + 1 || this.length);
@@ -927,7 +586,7 @@
 				bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
 				bullets.push( bullet );
 			}
-
+/*
 			function initParticles() {
 				particleAttributes = {
 
@@ -990,7 +649,7 @@
 				}
 
 				scene.add( particles );
-			}
+			}*/
 
 
 			function spawnEnemy() {
@@ -1056,8 +715,8 @@
 				material = new THREE.ShaderMaterial( {
 
 					uniforms: uniforms,
-					vertexShader: document.getElementById( 'vertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+					vertexShader: shaders["bg"].vertex,
+					fragmentShader: shaders["bg"].fragment
 
 				} );
 
@@ -1206,7 +865,6 @@
 				});
 				
 				//init window resize 
-				debugger
 				onWindowResize();
 			}
 
