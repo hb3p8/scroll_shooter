@@ -338,7 +338,7 @@
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 26.);
 						newEnemy.rotation.set(0., Math.PI, 0.);
 						newEnemy.velocity.set(0, 0, -0.3)
-						newEnemy.HP = 3;
+						newEnemy.HP = 8;
 						newEnemy.shootTimer.start();
 				/*		if (newEnemy.position.x > 0)
 							newEnemy.accel.set(-0.0005, 0, -0.001)
@@ -403,6 +403,32 @@
 
 				mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), material );
 				planeScene.add( mesh );
+
+/*
+				for (var i = -10; i <= 10; i++) {	
+					for (var j = -10; j <= 10; j++) {	
+						var pointColor = new THREE.Color();
+						var pos = new THREE.Vector3(i*0.8, 1., j*0.8);
+						var posForEllipse = pos.clone();
+						//posForEllipse.x *= 0.5;
+						var res;
+						res = posForEllipse.length() - 2.;
+
+ 						var d = pos.clone();
+ 						d.set(Math.max(Math.abs(d.x) - 4., 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
+						res = Math.min(res, d.length());
+
+						if ( res <= 0. ) {
+							pointColor.setHSL( 0.1, 0.8,  0.5 );	
+						} else {
+							pointColor.setHSL( 0.1, 0.8,  0.9 );
+						}		
+						var newMesh = new THREE.Mesh( new THREE.CubeGeometry( 0.2, 0.2, 0.2 ), 
+							new THREE.MeshBasicMaterial( { color : pointColor} ) );
+						newMesh.position = pos.clone();
+						scene.add( newMesh );
+					}
+				}*/
 				
 				
 				//camera.lookAt( scene.position );
@@ -430,6 +456,12 @@
 
 				var enemyLoader = new THREE.OBJMTLLoader();
 				enemyLoader.addEventListener( 'load', function ( event ) {
+
+						// var enemy = event.content.children[0].children[0].clone();
+						// enemy.visible = true;
+						// enemy.velocity = new THREE.Vector3(0, 0, 0);
+						// enemy.accel = new THREE.Vector3(0, 0, 0);
+						// scene.add( enemy );
 
 					for (var i = 0; i < 10; i++) {
 						var enemy = event.content.children[0].children[0].clone();
@@ -595,7 +627,19 @@
 
 			function clamp(val, min, max){
     			return Math.max(min, Math.min(max, val))
-			}		
+			}	
+
+
+			// need position in local space
+			function enemyTest(position){
+				var res;
+				res = position.length() - 2.;
+				var d = position.clone();
+				d.set(Math.max(Math.abs(d.x) - 4.3, 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
+				res = Math.min(res, d.length());
+
+				return res <= 0.;
+			}	
 
 
 
@@ -627,7 +671,7 @@
 							var enemy =  enemies[j];
 							if( !enemy.visible ) continue;
 							var delta = enemy.position.clone().sub(bullet.position);
-							if( delta.lengthSq() < 2.5 ) {
+							if( enemyTest(delta) ) { //} delta.lengthSq() < 2.5 ) {
 								enemy.HP -= 1;
 								bullet.visible = false;
 							}
