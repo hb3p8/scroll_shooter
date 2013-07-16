@@ -60,9 +60,13 @@
 		<script data-name="hud" type="x-shader/x-vertex" data-src='shaders/hud.vert'></script>
 		<script data-name="hud" type="x-shader/x-fragment" data-src='shaders/hud.frag'></script>
 
+		<script data-name="shield" type="x-shader/x-vertex" data-src='shaders/shield.vert'></script>
+		<script data-name="shield" type="x-shader/x-fragment" data-src='shaders/shield.frag'></script>
 
 		<script src='js/AnimatedSprite.js'></script>
 		<script src='js/Hud.js'></script>
+		<script src='js/Shield.js'></script>
+		<script src='js/PlayerState.js'></script>
 
 
 		<script>
@@ -203,13 +207,7 @@
 			//sounds END------------
 			
 			var bullet_sprites;
-			
-			var playerShootTrigger;
-			
-			var playerShootTimeCounter;
-			
-			var PLAYER_SHOOT_TIMEOUT = 100;
-			
+					
 			var hudSprite_1;
 			
 			var shieldSphere;
@@ -218,44 +216,16 @@
 			var timers = [];
 			var playerShootTimer;
 			
-			
-			
-			function Shield(textureName){			
-/*
-				this.spriteAttributes  = {
+			var playerState;
 
-					};
+			// constants
+
+			var PLAYER_SHOOT_TIMEOUT = 0.15;
+			var PLAYER_MAX_HP = 5.0;
+			var PLAYER_MAX_ENERGY = 5.0;
+			var PLAYER_HULL_RADIUS = 0.1;
+			var PLAYER_SHIELD_RADIUS = 0.12;
 					
-				this.spriteUniforms = {
-
-						texture:   { type: "t", value: THREE.ImageUtils.loadTexture( textureName ) },
-						hull:   { type: "f", value: 0.0 },
-						energy:   { type: "f", value: 0.0 }
-						
-					};
-				
-				
-
-				this.shaderMaterial = new THREE.ShaderMaterial( {
-
-					uniforms: 		this.spriteUniforms,
-					attributes:     this.spriteAttributes ,
-					vertexShader:   document.getElementById( 'shieldVertexShader' ).textContent,
-					fragmentShader: document.getElementById( 'shieldFragmentShader' ).textContent,
-
-					//blending: 		THREE.AdditiveBlending,
-					dynamic:        true,
-					depthTest: 		false,
-					transparent:	true
-
-				});
-				
-				this.shaderMaterial.depthWrite = false;
-							
-				this.mesh = new THREE.Mesh( new THREE.IcosahedronGeometry( 15, 5 ), this.shaderMaterial );
-			*/
-			}
-			
 
 			function ThresoldTimer(_thresold, _active, _callback){
 				this.thresold = _thresold || 1.0;
@@ -312,15 +282,17 @@
 			}
 
 			function playerShoot() {
-				var velocity = new THREE.Vector3(0, 0, 0.8);
-				var firstPosition = new THREE.Vector3(1.6, 0, 2.0);
-				var secondPosition = new THREE.Vector3(-1.6, 0, 2.0);
-				var bullet = new Bullet(ship.position.clone().add(firstPosition), velocity, true);
-				bullets.push( bullet );
+				if(playerState.shoot()){
+					var velocity = new THREE.Vector3(0, 0, 0.8);
+					var firstPosition = new THREE.Vector3(1.6, 0, 2.0);
+					var secondPosition = new THREE.Vector3(-1.6, 0, 2.0);
+					var bullet = new Bullet(ship.position.clone().add(firstPosition), velocity, true);
+					bullets.push( bullet );
 
-				bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
-				bullets.push( bullet );
-				shootSound.play();
+					bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
+					bullets.push( bullet );
+					shootSound.play();
+				}
 			}
 
 			function enemyShoot(enemy) {
@@ -453,7 +425,7 @@
 				timers.push( new ThresoldTimer(2.0, true, spawnEnemy) );
 				timers.push( new ThresoldTimer(0.1, true, cleanBullets) );
 
-				playerShootTimer = new ThresoldTimer(0.15, false, playerShoot);
+				playerShootTimer = new ThresoldTimer(PLAYER_SHOOT_TIMEOUT, false, playerShoot);
 				playerShootTimer.stop();
 				timers.push( playerShootTimer );				
 				
@@ -513,7 +485,8 @@
 				planeScene.add(hudSprite_1.mesh);
 				
 				//shield
-				shieldSphere = Shield();
+				shieldSphere = new Shield();
+				scene.add(shieldSphere.mesh);
 						
 				
 				//sounds init
@@ -522,6 +495,10 @@
 					urls: ['sounds/Laser1.ogg']
 				});
 				
+				// player stats
+
+				playerState = new PlayerState(PLAYER_MAX_HP,PLAYER_MAX_ENERGY,PLAYER_MAX_HP,PLAYER_MAX_ENERGY);
+
 				//init window resize 
 				onWindowResize();
 			}
@@ -597,6 +574,23 @@
     			return Math.max(min, Math.min(max, val))
 			}		
 
+			 // need position in local space
+			function enemyHitTest(position){
+				var res;
+				res = position.length() - 2.7;
+				var d = position.clone();
+				d.set(Math.max(Math.abs(d.x) - 4.3, 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
+				res = Math.min(res, d.length());
+
+				return res <= 0.;
+			} 
+
+			 function playerHitTest(position){
+				var res;
+				res = position.length() - 3.25;
+
+				return res <= 0.;
+			} 
 
 
 			function render() {
@@ -607,9 +601,18 @@
 				//triggers and timeouts processing
 				for (var i = 0; i < timers.length; i++) {
 					timers[i].update(frameDeltaTime);
-				};	
+				};
+
+
 							
 				uniforms.time.value = clock.oldTime * 0.005;
+
+
+				//player stats updating
+				hudSprite_1.hudUniforms.hull.value = playerState.hull / playerState.maxHull;
+				hudSprite_1.hudUniforms.energy.value = playerState.energy / playerState.maxEnergy;
+				playerState.updateState(frameDeltaTime);
+				shieldSphere.updateTime(frameDeltaTime);
 
 				// update bullets				
 				for( var i = 0; i < bullet_sprites.vertices.length / 4; i++ ) {
@@ -622,14 +625,22 @@
 						if (bullet.position.z > 27. || bullet.position.z < -27.  ) 
 							bullet.visible = false;
 
-						if( !bullet.fromPlayer ) continue;
-						for (var j = 0; j < enemies.length; j++) {
-							var enemy =  enemies[j];
-							if( !enemy.visible ) continue;
-							var delta = enemy.position.clone().sub(bullet.position);
-							if( delta.lengthSq() < 2.5 ) {
-								enemy.HP -= 1;
+						if( !bullet.fromPlayer ){
+							var delta = shieldSphere.mesh.position.clone().sub(bullet.position);
+							if( playerHitTest(delta) ) { 
+								playerState.hitByEnemy();
 								bullet.visible = false;
+							}
+						}
+						else{
+							for (var j = 0; j < enemies.length; j++) {
+								var enemy =  enemies[j];
+								if( !enemy.visible ) continue;
+								var delta = enemy.position.clone().sub(bullet.position);
+								if( enemyHitTest(delta) ) { //} delta.lengthSq() < 2.5 ) {
+									enemy.HP -= 1;
+									bullet.visible = false;
+								}
 							}
 						}
 
@@ -684,6 +695,10 @@
 					ship.position.add(delta);
 					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
 					ship.rotation.set(0, 0, angle);
+					//shield pos
+					shieldSphere.mesh.position = ship.position.clone();
+					shieldSphere.mesh.position.add( new THREE.Vector3(0.0, 0.0, 1.5));
+					shieldSphere.mesh.rotation = ship.rotation;
 				}
 
 				// render

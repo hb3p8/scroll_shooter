@@ -1,16 +1,16 @@
 function HudSprite(textureName){
 
 
-  this.spriteAttributes  = {
+  this.hudAttributes  = {
 
       texCoord: { type: 'v2', value: [] }
     };
     
-  this.spriteUniforms = {
+  this.hudUniforms = {
 
       texture:   { type: "t", value: THREE.ImageUtils.loadTexture( textureName ) },
-      hull:   { type: "f", value: 0.0 },
-      energy:   { type: "f", value: 0.0 }
+      hull:   { type: "f", value: 1.0 },
+      energy:   { type: "f", value: 1.0 }
       
     };
   
@@ -18,8 +18,8 @@ function HudSprite(textureName){
 
   this.shaderMaterial = new THREE.ShaderMaterial( {
 
-    uniforms:     this.spriteUniforms,
-    attributes:     this.spriteAttributes ,
+    uniforms:     this.hudUniforms,
+    attributes:     this.hudAttributes ,
     vertexShader:   shaders["hud"].vertex,
     fragmentShader: shaders["hud"].fragment,
 
@@ -34,7 +34,7 @@ function HudSprite(textureName){
   
   this.geometry = new THREE.Geometry();
   
-  this.texCoords = this.spriteAttributes.texCoord.value;      
+  this.texCoords = this.hudAttributes.texCoord.value;      
   this.vertices = this.geometry.vertices;
   this.faces = this.geometry.faces;
   

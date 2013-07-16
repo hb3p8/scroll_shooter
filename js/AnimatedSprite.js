@@ -58,11 +58,11 @@ function AnimatedSprite(textureName){
 }
 
 AnimatedSprite.prototype.removeSprite = function(n){
-  this.currentTime.splice(n,4);
-  this.faces.splice(n,4);
-  this.vertices.splice(n,4);
-  this.colors.splice(n,4);
-  this.texCoords.splice(n,4);
+  this.currentTime.splice(n * 4, 4);
+  this.faces.splice(n , 1);
+  this.vertices.splice(n * 4, 4);
+  this.colors.splice(n * 4, 4);
+  this.texCoords.splice(n * 4 ,4);
   
   //this.mesh = new THREE.Mesh( this.geometry, this.shaderMaterial );
 }
