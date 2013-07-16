@@ -7,8 +7,8 @@ function PlayerState(initHull, initEnergy, maxHull, maxEnergy){
 	this.energy = initEnergy;
 
 	this.rechargeRate = 1.5;
-	this.laserShootEnergyCost = 0.5;
-	this.shieldHitCost = 3.0;
+	this.laserShootEnergyCost = 0.3;
+	this.shieldHitCost = 1.5;
 	this.hullHitCost = 1.0;
 
 }
@@ -27,7 +27,10 @@ PlayerState.prototype.hitByEnemy = function(){
 	if(this.energy < 0.0){
 		this.hull -= this.hullHitCost;
 		this.energy = 0.0;
+		return false; //if shield down
 	}
+
+	return true; //if shield up
 
 }
 

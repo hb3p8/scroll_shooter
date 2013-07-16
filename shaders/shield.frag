@@ -3,10 +3,13 @@ uniform sampler2D texture;
 varying vec2 texc;
 varying vec3 pos;
 
-uniform vec3 hit_pos [4];
-uniform float time;
+#define hit_pos_count 4
 
-vec3 shot_pos = normalize(vec3(1.0,0.7,1.0));
+uniform vec4 hit_pos [hit_pos_count];
+uniform float time;
+uniform float hit_effect_time;
+
+//vec3 shot_pos = normalize(vec3(1.0,0.7,1.0));
 
 float hash( float n ) { return fract(sin(n)*43758.5453123); }
 float noise( in vec3 x )
@@ -35,7 +38,7 @@ void main() {
 	float f = 0.1;
 	
 	vec3 q = (3.5 + time/2.0) * pos ;
-	f  = 0.5000*noise( q ); q = m*q*2.04;
+	f  = 0.5000*noise( q ); q = m*q*2.04 * abs(time / 4.0);
 	f += 0.2500*noise( q ); q = m*q*2.02;
 	//f += 0.1250*noise( q ); q = m*q*2.03;
 	//f += 0.0625*noise( q ); q = m*q*2.01;
@@ -49,7 +52,19 @@ void main() {
 	
 	col *= vec3(0.1,0.8,1.0);
 	
+	float alpha = 0.0;
+	for(int i = 0; i < hit_pos_count; i++)
+	{
+		if(hit_pos[i].w > 0.0)
+		{
+			alpha += (clamp((1.0 - pow(length( normalize(hit_pos[i].xyz) - pos ),2.0) ), 0.0, 1.0)*1.3 )
+			 * (hit_pos[i].w / hit_effect_time);
+		}
+			
+	}
+
 	
-	gl_FragColor = vec4( col, (clamp((1.0 - pow(length(shot_pos - pos),2.0) ), 0.0, 1.0)*1.3 + 0.04)* length(col) );
+
+	gl_FragColor = vec4( col, /*(clamp((1.0 - pow(length(shot_pos - pos),2.0) ), 0.0, 1.0)*1.3 + 0.04)* length(col)*/ alpha );
 			
 }

@@ -628,8 +628,9 @@
 						if( !bullet.fromPlayer ){
 							var delta = shieldSphere.mesh.position.clone().sub(bullet.position);
 							if( playerHitTest(delta) ) { 
-								playerState.hitByEnemy();
 								bullet.visible = false;
+								if( playerState.hitByEnemy() ) //if shlield up
+									shieldSphere.addHit(bullet.position.clone().sub(ship.position));
 							}
 						}
 						else{
