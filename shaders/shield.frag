@@ -5,9 +5,14 @@ varying vec3 pos;
 
 #define hit_pos_count 4
 
+#define blinking
+#define wave_effect
+
 uniform vec4 hit_pos [hit_pos_count];
 uniform float time;
 uniform float hit_effect_time;
+
+uniform float frame; // for blinking
 
 //vec3 shot_pos = normalize(vec3(1.0,0.7,1.0));
 
@@ -53,13 +58,39 @@ void main() {
 	col *= vec3(0.1,0.8,1.0);
 	
 	float alpha = 0.0;
+
+	float time_norm;
+	float radius ;
+
 	for(int i = 0; i < hit_pos_count; i++)
 	{
 		if(hit_pos[i].w > 0.0)
 		{
-			alpha += (clamp((1.0 - pow(length( normalize(hit_pos[i].xyz) - pos ),2.0) ), 0.0, 1.0)*1.3 )
-			 * (hit_pos[i].w / hit_effect_time);
+			time_norm = (hit_pos[i].w / hit_effect_time); // 0..1 
+			radius = length( normalize(hit_pos[i].xyz) - pos );
+
+
+
+			#ifdef wave_effect
+
+			if(radius > (1.0 - time_norm))
+				alpha += (clamp((1.5 - radius * radius * 1.2 ), 0.0, 1.0) * 1.5 ) * time_norm;
+
+			#endif
+
+			#ifndef wave_effect
+
+			alpha += (clamp((1.5 - radius * radius * 1.1 ), 0.0, 1.0) * 1.3 ) * time_norm;
+
+			#endif
+
+			#ifdef blinking
+
+			alpha *= (mod(frame , 3.0) + 0.2) / 3.0;
+
+			#endif
 		}
+
 			
 	}
 

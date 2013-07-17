@@ -222,7 +222,7 @@
 
 			var PLAYER_SHOOT_TIMEOUT = 0.15;
 			var PLAYER_MAX_HP = 5.0;
-			var PLAYER_MAX_ENERGY = 5.0;
+			var PLAYER_MAX_ENERGY = 7.0;
 			var PLAYER_HULL_RADIUS = 0.1;
 			var PLAYER_SHIELD_RADIUS = 0.12;
 					
@@ -743,7 +743,7 @@
 					//shield pos
 					shieldSphere.mesh.position = ship.position.clone();
 					shieldSphere.mesh.position.add( new THREE.Vector3(0.0, 0.0, 1.5));
-					shieldSphere.mesh.rotation = ship.rotation;
+					//shieldSphere.mesh.rotation = ship.rotation;
 				}
 
 				// render

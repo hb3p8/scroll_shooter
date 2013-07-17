@@ -15,6 +15,7 @@ function Shield(){
                                        		new THREE.Vector4( 0.0, 0.0, 0.0, 0.0 )] },
 			time:   { type: "f", value: 0.0 },
 			hit_effect_time:   { type: "f", value: 0.4 },
+			frame:   { type: "f", value: 0.0 }
 			
 		};
 	
@@ -77,15 +78,17 @@ Shield.prototype.updateTime = function(deltaTime){
 		this.Uniforms.hit_pos.value[i].w -= deltaTime;
 		if ( this.Uniforms.hit_pos.value[i].w < 0.0 ) this.Uniforms.hit_pos.value[i].w = 0.0;
 	}
+
+	this.Uniforms.frame.value += 1.0;
 }
 
 Shield.prototype.addHit = function(position){
 
 
 	this.Uniforms.hit_pos.value[this.nextHitSlot].x = position.x;
-	this.Uniforms.hit_pos.value[this.nextHitSlot].z = position.z;
+	this.Uniforms.hit_pos.value[this.nextHitSlot].z = position.z - 1.4;//-1.5 for laser
 
-	this.Uniforms.hit_pos.value[this.nextHitSlot].y = (Math.random() * 2.0 - 1.0) * 1.5;
+	this.Uniforms.hit_pos.value[this.nextHitSlot].y = (Math.random() * 2.0 - 1.0) * 1.0;
 
 	this.Uniforms.hit_pos.value[this.nextHitSlot].w = this.hitEffectTime;
 

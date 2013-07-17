@@ -7,8 +7,8 @@ function PlayerState(initHull, initEnergy, maxHull, maxEnergy){
 	this.energy = initEnergy;
 
 	this.rechargeRate = 1.5;
-	this.laserShootEnergyCost = 0.3;
-	this.shieldHitCost = 1.5;
+	this.laserShootEnergyCost = 0.37;
+	this.shieldHitCost = 1.2;
 	this.hullHitCost = 1.0;
 
 }
