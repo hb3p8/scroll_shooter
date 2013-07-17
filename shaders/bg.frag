@@ -2,13 +2,12 @@ precision lowp float;
 
 uniform vec2 resolution;
 uniform float time;
+uniform int iterations;
+uniform int volsteps;
 
 // Star Nest by Kali
 
-#define iterations 17
 #define formuparam 0.530
-
-#define volsteps 10
 #define stepsize 0.100
 
 #define zoom   0.800

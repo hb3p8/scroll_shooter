@@ -7,7 +7,7 @@
 		<style>
 			body {
 				font-family: Monospace;
-				background-color: #000;
+				background-color: #111111;
 				color: #fff;
 				margin: 0px;
 				overflow: hidden;
@@ -360,6 +360,8 @@
 
 				uniforms = {
 					time: { type: "f", value: 1.0 },
+					iterations: { type: "i", value: 17 },
+					volsteps: { type: "i", value: 12 },
 					resolution: { type: "v2", value: new THREE.Vector2() }
 				};
 
@@ -474,16 +476,26 @@
 				debugController  = {
 
 					enabled: true,
+					iterations: 17,
+					volsteps: 12
 
 				};
 
 				var debugUpdate = function( ) {
-
+					uniforms.iterations.value = debugController.iterations;
+					uniforms.volsteps.value = debugController.volsteps;
 				};
 
 				var gui = new dat.GUI();
 
-				gui.add( debugController, "enabled" ).onChange( debugUpdate );
+				var f1 = gui.addFolder('Main');
+				f1.add( debugController, "enabled" ).name("Animation enabled");
+				var f2 = gui.addFolder('Background');
+				f2.add( debugController, "iterations", 5, 25 ).name("Iterations").onChange( debugUpdate );
+				f2.add( debugController, "volsteps", 5, 40 ).name("Volume steps").onChange( debugUpdate );
+				var f3 = gui.addFolder('Stats');
+				f3.add( bullets, "length" ).name("Bullets count").listen();
+				gui.close();
 
 
 				// Event listeners

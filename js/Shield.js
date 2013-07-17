@@ -28,7 +28,7 @@ function Shield(){
     	vertexShader:   shaders["shield"].vertex,
     	fragmentShader: shaders["shield"].fragment,
 
-		//blending: 		THREE.AdditiveBlending,
+		blending: 		THREE.AdditiveBlending,
 		dynamic:        true,
 		depthTest: 		false,
 		transparent:	true

@@ -5,8 +5,8 @@ varying vec3 pos;
 
 #define hit_pos_count 4
 
-#define blinking
-#define wave_effect
+//#define blinking
+//#define wave_effect
 
 uniform vec4 hit_pos [hit_pos_count];
 uniform float time;
