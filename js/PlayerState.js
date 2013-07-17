@@ -6,10 +6,15 @@ function PlayerState(initHull, initEnergy, maxHull, maxEnergy){
 	this.hull = initHull;
 	this.energy = initEnergy;
 
-	this.rechargeRate = 1.5;
-	this.laserShootEnergyCost = 0.37;
-	this.shieldHitCost = 1.2;
+	this.rechargeRate = 2.0;
+	this.laserShootEnergyCost = 0.33;
+	this.shieldHitCost = 3.5;
 	this.hullHitCost = 1.0;
+
+	// попробовал поднастроить так чтобы даже с энергией под ноль 
+	// можно было нормально стрелять, но щит не восстанавливается практически 
+	// при постоянной стрельбе
+	// + выстрелы скашивают щит гораздо быстрее ибо нефиг)
 
 }
 

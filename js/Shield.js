@@ -48,7 +48,7 @@ function Shield(){
 	this.mesh.scale.y = 2.5;  //3
 	this.mesh.scale.z = 3.2;  //4
 
-	this.timeDirectin = true;
+	this.timeDirection = true;
 	this.timeMaxValue = 3.0;
 
 	this.maxHitCount = 4;
@@ -59,18 +59,18 @@ function Shield(){
 }
 
 Shield.prototype.updateTime = function(deltaTime){
-	if(this.timeDirectin){
+	if(this.timeDirection){
 		this.Uniforms.time.value += deltaTime;
 		if( this.Uniforms.time.value >= this.timeMaxValue ){
 			this.Uniforms.time.value = this.timeMaxValue;
-			this.timeDirectin = false;
+			this.timeDirection = false;
 		}
 	}
 	else{
 		this.Uniforms.time.value -= deltaTime;
 		if( this.Uniforms.time.value <= 0.0 ){
 			this.Uniforms.time.value = 0.0;
-			this.timeDirectin = true;
+			this.timeDirection = true;
 		}
 	}
 

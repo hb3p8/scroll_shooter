@@ -26,7 +26,7 @@ function AnimatedSprite(textureName){
     vertexShader:   shaders["sprite"].vertex,
     fragmentShader: shaders["sprite"].fragment,
 
-    //blending:     THREE.AdditiveBlending,
+    blending:     THREE.AdditiveBlending,
     dynamic:        true,
     depthTest:    false,
     transparent:  true
@@ -88,11 +88,31 @@ AnimatedSprite.prototype.updateTime = function(deltaTime){
 
 }
 
-AnimatedSprite.prototype.addSprite = function(pos, width, height){
+AnimatedSprite.prototype.setSpriteTexCoords = function(n, verts){
+
+  verts = verts || [ new THREE.Vector2( 0.0,0.0 ),
+                     new THREE.Vector2( 1.0,0.0 ),
+                     new THREE.Vector2( 1.0,1.0 ),
+                     new THREE.Vector2( 0.0,1.0 ) ];     
+  
+  n *= 4;   
+  
+  for(var i = 0; i < 4; i++){
+    this.texCoords[n + i] = verts[i].clone();
+  }
+  
+  this.spriteAttributes.texCoord.needsUpdate = true;
+}
+
+AnimatedSprite.prototype.addSprite = function(pos, width, height, texCoords){
 
   pos = pos || (new THREE.Vector3( 0.0,0.0,0.0  ));
   width = width || 1.0;
   height = height || 1.0;
+  texCoords = texCoords || [ new THREE.Vector2( 0.0,0.0 ),
+                             new THREE.Vector2( 1.0,0.0 ),
+                             new THREE.Vector2( 1.0,1.0 ),
+                             new THREE.Vector2( 0.0,1.0 ) ];
 
   verticesLen = this.vertices.length ;
 
@@ -113,10 +133,10 @@ AnimatedSprite.prototype.addSprite = function(pos, width, height){
   this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
   this.colors.push( new THREE.Vector3( 1.0,1.0,1.0 ));
   
-  this.texCoords.push( new THREE.Vector2( 0.0,0.0 ));
-  this.texCoords.push( new THREE.Vector2( 1.0,0.0 ));
-  this.texCoords.push( new THREE.Vector2( 1.0,1.0 ));
-  this.texCoords.push( new THREE.Vector2( 0.0,1.0 ));
+  this.texCoords.push( texCoords[0].clone() );
+  this.texCoords.push( texCoords[1].clone() );
+  this.texCoords.push( texCoords[2].clone() );
+  this.texCoords.push( texCoords[3].clone() );
   
   this.currentTime.push(0.0);
   this.currentTime.push(0.0);

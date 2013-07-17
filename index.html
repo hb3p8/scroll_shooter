@@ -510,7 +510,7 @@
 				clock = new THREE.Clock( true );
 				
 				//sprites init
-				bullet_sprites = new AnimatedSprite("sprites/blueLaserRay.png");
+				bullet_sprites = new AnimatedSprite("sprites/lasers.png");
 				
 				for(var i = 0; i < 100;i++){
 				
@@ -670,6 +670,17 @@
 				playerState.updateState(frameDeltaTime);
 				shieldSphere.updateTime(frameDeltaTime);
 
+
+				var playerBulletTexCoords = [ new THREE.Vector2( 0.0,0.5 ),
+				            				  new THREE.Vector2( 1.0,0.5 ),
+				            				  new THREE.Vector2( 1.0,1.0 ),
+				            				  new THREE.Vector2( 0.0,1.0 ) ];   
+
+				var enemyBulletTexCoords  = [ new THREE.Vector2( 0.0,0.0 ),
+				            				  new THREE.Vector2( 1.0,0.0 ),
+				            				  new THREE.Vector2( 1.0,0.5 ),
+				            				  new THREE.Vector2( 0.0,0.5 ) ];  
+
 				// update bullets				
 				for( var i = 0; i < bullet_sprites.vertices.length / 4; i++ ) {
 					var bullet = bullets[i]
@@ -682,6 +693,7 @@
 							bullet.visible = false;
 
 						if( !bullet.fromPlayer ){
+							bullet_sprites.setSpriteTexCoords(i, enemyBulletTexCoords);
 							var delta = shieldSphere.mesh.position.clone().sub(bullet.position);
 							if( playerHitTest(delta) ) { 
 								bullet.visible = false;
@@ -690,6 +702,7 @@
 							}
 						}
 						else{
+							bullet_sprites.setSpriteTexCoords(i, playerBulletTexCoords);
 							for (var j = 0; j < enemies.length; j++) {
 								var enemy =  enemies[j];
 								if( !enemy.visible ) continue;
@@ -710,15 +723,9 @@
 				}
 
 				// update enemies
-
-				// var k = 0;
 				for (var i = 0; i < enemies.length; i++) {
 					if (enemies[i].visible === true) {
 						enemies[i].position.add(enemies[i].velocity);
-				//		enemies[i].velocity.add(enemies[i].accel);
-				//		var angle = clamp(enemies[i].velocity.x, -0.2, 0.2) / 0.2 * Math.PI / 5.;
-				//		enemies[i].rotation.set(0, Math.PI, angle);
-						// k += 1;
 						if (enemies[i].position.z < -26.  || enemies[i].HP <= 0)  {
 							enemies[i].shootTimer.stop();
 							enemies[i].visible = false;
@@ -729,7 +736,6 @@
 
 
 				// update ship
-
 				if (ship) {
 					var vec = new THREE.Vector3(
 					    ( mouseX / canvas.width ) * 2.,
@@ -744,18 +750,21 @@
 
 					var delta = new THREE.Vector3(0, 0, 0);
 					delta.subVectors(pos, ship.position);
-					delta.divideScalar(16.); 
-					// delta.x /= 16;
-					// delta.z /= 25;
+					dlen = delta.length();
+					if(dlen > 5.2) {
+						delta.divideScalar(dlen); 
+						delta.multiplyScalar(Math.min(Math.sqrt(dlen), 5.2));
+						// Ускорил корабль, нафиг реализм так веселее!
+					}
+					
 					delta.setY( 0.0 );
 					
 					ship.position.add(delta);
 					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
 					ship.rotation.set(0, 0, angle);
-					//shield pos
+
 					shieldSphere.mesh.position = ship.position.clone();
 					shieldSphere.mesh.position.add( new THREE.Vector3(0.0, 0.0, 1.5));
-					//shieldSphere.mesh.rotation = ship.rotation;
 				}
 
 				// render
