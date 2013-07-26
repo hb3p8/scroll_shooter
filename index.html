@@ -175,6 +175,7 @@
 			var camera, scene, renderer, ship;
 			var enemies = [];
 			var bullets = [];
+			var hits = [];
 
 			var planeCamera, planeScene;
 
@@ -206,7 +207,7 @@
 			
 			//sounds END------------
 			
-			var bullet_sprites;
+			var bullet_sprites, hit_sprites, test_sprites;
 					
 			var hudSprite_1;
 			
@@ -272,14 +273,34 @@
 			}
 
 			function cleanBullets() {
-
 				for (var i = 0; i < bullets.length; i++) {
 					if(!bullets[i].visible) {
 						bullets.splice(i, 1); // TODO: сделать бы поэффективнее
 					}
 				};
-
 			}
+
+			function Hit(position, timeOffset) {
+				this.position = position;
+				this.timeOffset = timeOffset || 0.0;
+				this.timeScaleFactor = 0.005;
+				this.visible = true;
+			}
+
+			function cleanHits() {
+				for (var i = 0; i < hits.length; i++) {
+					if(!hits[i].visible) {
+						hits.splice(i, 1); // TODO: сделать бы поэффективнее
+					}
+				};
+			}
+
+
+			function cleanSprites() {
+				cleanBullets();
+				cleanHits();
+			}
+
 
 			function playerShoot() {
 				if(playerState.shoot()){
@@ -457,7 +478,7 @@
 
 
 				timers.push( new ThresoldTimer(2.0, true, spawnEnemy) );
-				timers.push( new ThresoldTimer(0.1, true, cleanBullets) );
+				timers.push( new ThresoldTimer(0.1, true, cleanSprites) );
 
 				playerShootTimer = new ThresoldTimer(PLAYER_SHOOT_TIMEOUT, false, playerShoot);
 				playerShootTimer.stop();
@@ -475,26 +496,27 @@
 
 				debugController  = {
 
-					enabled: true,
-					iterations: 17,
-					volsteps: 12
+					enabled: true
+					// iterations: 17,
+					// volsteps: 12
 
 				};
 
 				var debugUpdate = function( ) {
-					uniforms.iterations.value = debugController.iterations;
-					uniforms.volsteps.value = debugController.volsteps;
+					// uniforms.iterations.value = debugController.iterations;
+					// uniforms.volsteps.value = debugController.volsteps;
 				};
 
 				var gui = new dat.GUI();
 
 				var f1 = gui.addFolder('Main');
 				f1.add( debugController, "enabled" ).name("Animation enabled");
-				var f2 = gui.addFolder('Background');
-				f2.add( debugController, "iterations", 5, 25 ).name("Iterations").onChange( debugUpdate );
-				f2.add( debugController, "volsteps", 5, 40 ).name("Volume steps").onChange( debugUpdate );
+				// var f2 = gui.addFolder('Background');
+				// f2.add( debugController, "iterations", 5, 25 ).name("Iterations").onChange( debugUpdate );
+				// f2.add( debugController, "volsteps", 5, 40 ).name("Volume steps").onChange( debugUpdate );
 				var f3 = gui.addFolder('Stats');
 				f3.add( bullets, "length" ).name("Bullets count").listen();
+				f3.add( hits, "length" ).name("Hits count").listen();
 				gui.close();
 
 
@@ -510,20 +532,25 @@
 				clock = new THREE.Clock( true );
 				
 				//sprites init
-				bullet_sprites = new AnimatedSprite("sprites/lasers.png");
-				
-				for(var i = 0; i < 100;i++){
-				
-					bullet_sprites.addSprite(new THREE.Vector3( -10000.0, 0.0, -10000,0 ),0.15,0.07);
-					bullet_sprites.rotate(i,Math.PI/2);
-				
-				}
-				
-				//bullet_sprites.setSpriteAnimationParam(300,10);
-				
+				bullet_sprites = new AnimatedSprite("sprites/lasers.png");				
+				for(var i = 0; i < 100; i++){				
+					bullet_sprites.addSprite(new THREE.Vector3( -10000.0, 0.0, -10000.0 ),0.15,0.07);
+					bullet_sprites.rotate(i,Math.PI/2);				
+				}							
 				scene.add(bullet_sprites.mesh);
-				
-				
+
+				hit_sprites = new AnimatedSprite("sprites/hit_sprites.png");			
+				for(var i = 0; i < 50; i++){				
+					hit_sprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
+					// hit_sprites.rotate(i, Math.PI);			
+				}							
+				scene.add(hit_sprites.mesh);
+
+				// test_sprites = new AnimatedSprite("sprites/hit_sprites.png");
+				// test_sprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
+				// test_sprites.rotate(0, Math.PI);		
+				// scene.add(test_sprites.mesh);
+
 				hudSprite_1 = new HudSprite("sprites/greenLaserRay.png");
 				
 				planeScene.add(hudSprite_1.mesh);
@@ -649,6 +676,22 @@
 			} 
 
 
+			var playerBulletTexCoords = 
+				[ new THREE.Vector2( 0.0,0.5 ),
+				  new THREE.Vector2( 1.0,0.5 ),
+				  new THREE.Vector2( 1.0,1.0 ),
+				  new THREE.Vector2( 0.0,1.0 ) ];   
+
+			var enemyBulletTexCoords = 
+				[ new THREE.Vector2( 0.0,0.0 ),
+				  new THREE.Vector2( 1.0,0.0 ),
+				  new THREE.Vector2( 1.0,0.5 ),
+				  new THREE.Vector2( 0.0,0.5 ) ];  
+
+			function fract(f) {
+			    return f % 1;
+			}
+
 			function render() {
 				if (!debugController.enabled) return;
 				
@@ -658,6 +701,17 @@
 				for (var i = 0; i < timers.length; i++) {
 					timers[i].update(frameDeltaTime);
 				};
+
+				// prototype
+				// var frame = Math.ceil(fract(clock.oldTime * 0.005) * 8.01);
+				// var xDelta = 100/1024;
+				// var hitTexCoords = 
+				// 	[ new THREE.Vector2( frame * xDelta, 252/500 ),
+				// 	  new THREE.Vector2( (frame+1) * xDelta, 252/500 ),
+				// 	  new THREE.Vector2( (frame+1) * xDelta, 352/500 ),
+				// 	  new THREE.Vector2( frame * xDelta, 352/500 ) ];  
+
+				// test_sprites.setSpriteTexCoords(0, hitTexCoords);
 
 
 							
@@ -669,17 +723,6 @@
 				hudSprite_1.hudUniforms.energy.value = playerState.energy / playerState.maxEnergy;
 				playerState.updateState(frameDeltaTime);
 				shieldSphere.updateTime(frameDeltaTime);
-
-
-				var playerBulletTexCoords = [ new THREE.Vector2( 0.0,0.5 ),
-				            				  new THREE.Vector2( 1.0,0.5 ),
-				            				  new THREE.Vector2( 1.0,1.0 ),
-				            				  new THREE.Vector2( 0.0,1.0 ) ];   
-
-				var enemyBulletTexCoords  = [ new THREE.Vector2( 0.0,0.0 ),
-				            				  new THREE.Vector2( 1.0,0.0 ),
-				            				  new THREE.Vector2( 1.0,0.5 ),
-				            				  new THREE.Vector2( 0.0,0.5 ) ];  
 
 				// update bullets				
 				for( var i = 0; i < bullet_sprites.vertices.length / 4; i++ ) {
@@ -699,6 +742,9 @@
 								bullet.visible = false;
 								if( playerState.hitByEnemy() ) //if shlield up
 									shieldSphere.addHit(bullet.position.clone().sub(ship.position));
+
+								var hitEffect = new Hit(bullet.position.clone(), clock.oldTime);
+								hits.push( hitEffect );
 							}
 						}
 						else{
@@ -707,17 +753,50 @@
 								var enemy =  enemies[j];
 								if( !enemy.visible ) continue;
 								var delta = enemy.position.clone().sub(bullet.position);
-								if( enemyHitTest(delta) ) { //} delta.lengthSq() < 2.5 ) {
+								if( enemyHitTest(delta) ) { 
 									enemy.HP -= 1;
 									bullet.visible = false;
+
+									var hitEffect = new Hit(bullet.position.clone(), clock.oldTime);
+									hits.push( hitEffect );
 								}
 							}
 						}
 
 					} else {
 
-						if(bullet_sprites.vertices[i * 4].x > - 5000 /*dirty hack*/) bullet_sprites.setSpritePosition(i, -10000 , -10000);
+						if(bullet_sprites.vertices[i * 4].x > - 5000) bullet_sprites.setSpritePosition(i, -10000 , -10000);
 
+					}
+
+				}
+
+
+				// update hits				
+				for( var i = 0; i < hit_sprites.vertices.length / 4; i++ ) {
+					var hit = hits[i]
+					if( hit && hit.visible ) {
+						hit_sprites.setSpritePosition(i, hit.position.x, hit.position.z);
+
+						var delta = (clock.oldTime - hit.timeOffset) * hit.timeScaleFactor;
+						if( delta < 1.0 ) {
+							var frame = Math.ceil(delta * 8.01);
+							var xDelta = 100/1024;
+							var hitTexCoords = 
+								[ new THREE.Vector2( frame * xDelta, 252/500 ),
+								  new THREE.Vector2( (frame+1) * xDelta, 252/500 ),
+								  new THREE.Vector2( (frame+1) * xDelta, 352/500 ),
+								  new THREE.Vector2( frame * xDelta, 352/500 ) ]; 
+
+							hit_sprites.setSpriteTexCoords(i, hitTexCoords);
+						} else {
+							hit.visible = false;
+						}
+
+
+					} else {
+
+						if(hit_sprites.vertices[i * 4].x > - 5000) hit_sprites.setSpritePosition(i, -10000 , -10000);
 					}
 
 				}

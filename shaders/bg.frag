@@ -2,8 +2,6 @@ precision lowp float;
 
 uniform vec2 resolution;
 uniform float time;
-uniform int iterations;
-uniform int volsteps;
 
 // Star Nest by Kali
 
@@ -14,6 +12,8 @@ uniform int volsteps;
 #define tile   0.850
 #define speed  0.015 
 
+#define iterations 17
+#define volsteps 12
 #define brightness 0.0015
 #define darkmatter 0.300
 #define distfading 0.760
@@ -39,7 +39,7 @@ void main(void)
     vec3 p=from+s*dir*.5;
     p = abs(vec3(tile)-mod(p,vec3(tile*2.))); // tiling fold
     float pa,a=pa=0.;
-    for (int i=0; i<iterations; i++) { 
+    for (int i=0; i<iterations; i++) {
       p=abs(p)/dot(p,p)-formuparam; // the magic formula
       a+=abs(length(p)-pa); // absolute sum of average change
       pa=length(p);
