@@ -173,7 +173,7 @@
 			var container, stats;
 
 			var camera, scene, renderer, playerShip;
-			var heavyEnemies = [];
+			var enemies = [];
 			var bullets = [];
 			var hits = [];
 
@@ -250,9 +250,6 @@
 				}
 			}
 
-			// init();
-			// animate();
-
 			Array.prototype.remove = function(from, to) {
 			  var rest = this.slice((to || from) + 1 || this.length);
 			  this.length = from < 0 ? this.length + from : from;
@@ -297,6 +294,34 @@
 			}
 
 
+			// need position in local space
+			function enemyHitTest(position){
+				var res;
+				res = position.length() - 2.7;
+				var d = position.clone();
+				d.set(Math.max(Math.abs(d.x) - 4.3, 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
+				res = Math.min(res, d.length());
+
+				return res <= 0.;
+			} 
+
+			function cubeHitTest(position){
+				var res;
+				var d = position.clone();
+				d.set(Math.max(Math.abs(d.x) - 2.0, 0.), 0., Math.max(Math.abs(d.z) - 2.2, 0.));
+				res = d.length();
+
+				return res <= 0.;
+			} 
+
+			 function playerHitTest(position){
+				var res;
+				res = position.length() - 3.25;
+
+				return res <= 0.;
+			} 
+
+
 			function playerShoot() {
 				if(playerState.shoot()){
 					var velocity = new THREE.Vector3(0, 0, 0.8);
@@ -318,11 +343,12 @@
 				// shootSound.play();
 			}	
 
-			function spawnEnemy() {
+
+			function spawnHeavyEnemy() {
 				var newEnemy;
-				for (var i = 0; i < heavyEnemies.length; i++) {
-					if (heavyEnemies[i].visible === false) {
-						newEnemy = heavyEnemies[i];
+				for (var i = 0; i < enemies.length; i++) {
+					if (enemies[i].visible === false && enemies[i].enemyType === 'heavy') {
+						newEnemy = enemies[i];
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 26.);
 						newEnemy.rotation.set(0., Math.PI, 0.);
 						newEnemy.velocity.set(0, 0, -0.3)
@@ -331,14 +357,35 @@
 						break;
 					};
 				};
-
 				if (newEnemy) {
 					newEnemy.visible = true;
-					// recursive spawn
-					// if (Math.random() < 0.2) { 
-					// 	spawnEnemy(); 
-					// 	newEnemy.position.z += 5;
-					// }
+				}				
+			}
+
+			function spawnCubeEnemy() {
+				var newEnemy;
+				for (var i = 0; i < enemies.length; i++) {
+					if (enemies[i].visible === false && enemies[i].enemyType === 'cube') {
+						newEnemy = enemies[i];
+						newEnemy.position.set(Math.random() * 20 - 10, 0., 26.);
+						newEnemy.rotation.set(0., Math.PI, 0.);
+						newEnemy.velocity.set(0, 0, -0.3)
+						newEnemy.HP = 6;
+						newEnemy.shootTimer.start();
+						break;
+					};
+				};
+				if (newEnemy) {
+					newEnemy.visible = true;
+				}				
+			}
+			
+
+			function spawnEnemy() {
+				if (Math.random() > 0.5) {
+					spawnHeavyEnemy();
+				} else {
+					spawnCubeEnemy();
 				}
 			}
 
@@ -431,8 +478,8 @@
 				});
 				loader.load( 'obj/fighter/fighter.obj', 'obj/fighter/fighter.mtl' );
 
-				var enemyLoader = new THREE.OBJMTLLoader();
-				enemyLoader.addEventListener( 'load', function ( event ) {
+				var heavyEnemyLoader = new THREE.OBJMTLLoader();
+				heavyEnemyLoader.addEventListener( 'load', function ( event ) {
 
 						// var enemy = event.content.children[0].children[0].clone();
 						// enemy.visible = true;
@@ -450,17 +497,45 @@
 						enemy.shootTimer.stop();
 						timers.push(enemy.shootTimer);
 
+						enemy.enemyType = 'heavy';
+						enemy.hitTest = enemyHitTest;
+
 						scene.add( enemy );
-						heavyEnemies.push( enemy );
+						enemies.push( enemy );
 
 					};
 
 				});
-				enemyLoader.load( 'obj/enemy/enemy.obj', 'obj/enemy/enemy.mtl' );
+				heavyEnemyLoader.load( 'obj/enemy/enemy.obj', 'obj/enemy/enemy.mtl' );
+
+
+				var cubeEnemyLoader = new THREE.OBJMTLLoader();
+				cubeEnemyLoader.addEventListener( 'load', function ( event ) {
+					for (var i = 0; i < 10; i++) {
+						var enemy = event.content.children[0].children[0].clone();
+						enemy.visible = false;
+						enemy.velocity = new THREE.Vector3(0, 0, 0);
+						enemy.accel = new THREE.Vector3(0, 0, 0);
+						enemy.shootTimer = new ThresoldTimer(0.95, false, 
+							function(e){ return function(){ enemyShoot(e); } }(enemy) );
+						enemy.shootTimer.stop();
+						timers.push(enemy.shootTimer);
+
+						enemy.enemyType = 'cube';
+						enemy.hitTest = cubeHitTest;
+
+						scene.add( enemy );
+						enemies.push( enemy );
+
+					};
+
+				});
+				cubeEnemyLoader.load( 'obj/cubeEnemy/cube.obj', 'obj/cubeEnemy/cube.mtl' );
+
 
 
 				timers.push( new ThresoldTimer(2.0, true, spawnEnemy) );
-				timers.push( new ThresoldTimer(0.1, true, cleanSprites) );
+				timers.push( new ThresoldTimer(0.2, true, cleanSprites) );
 
 				playerShootTimer = new ThresoldTimer(PLAYER_SHOOT_TIMEOUT, false, playerShoot);
 				playerShootTimer.stop();
@@ -628,36 +703,6 @@
 			}	
 
 
-			// need position in local space
-			function enemyTest(position){
-				var res;
-				res = position.length() - 2.;
-				var d = position.clone();
-				d.set(Math.max(Math.abs(d.x) - 4.3, 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
-				res = Math.min(res, d.length());
-
-				return res <= 0.;
-			}	
-
-			 // need position in local space
-			function enemyHitTest(position){
-				var res;
-				res = position.length() - 2.7;
-				var d = position.clone();
-				d.set(Math.max(Math.abs(d.x) - 4.3, 0.), 0., Math.max(Math.abs(d.z) - 1., 0.));
-				res = Math.min(res, d.length());
-
-				return res <= 0.;
-			} 
-
-			 function playerHitTest(position){
-				var res;
-				res = position.length() - 3.25;
-
-				return res <= 0.;
-			} 
-
-
 			var playerBulletTexCoords = 
 				[ new THREE.Vector2( 0.0,0.5 ),
 				  new THREE.Vector2( 1.0,0.5 ),
@@ -732,11 +777,11 @@
 						}
 						else{
 							bulletSprites.setSpriteTexCoords(i, playerBulletTexCoords);
-							for (var j = 0; j < heavyEnemies.length; j++) {
-								var enemy =  heavyEnemies[j];
+							for (var j = 0; j < enemies.length; j++) {
+								var enemy =  enemies[j];
 								if( !enemy.visible ) continue;
 								var delta = enemy.position.clone().sub(bullet.position);
-								if( enemyHitTest(delta) ) { 
+								if( enemy.hitTest(delta) ) { 
 									// enemy catch the bullet
 									enemy.HP -= 1;
 									bullet.visible = false;
@@ -785,16 +830,18 @@
 
 				}
 
-				// update heavyEnemies
-				for (var i = 0; i < heavyEnemies.length; i++) {
-					var enemy = heavyEnemies[i]; 
+				// update enemies
+				for (var i = 0; i < enemies.length; i++) {
+					var enemy = enemies[i]; 
 					if (enemy.visible === true) {
 						enemy.position.add(enemy.velocity);
+						if (enemy.enemyType === 'cube') {
+							enemy.velocity.x = Math.sin(clock.oldTime*0.001) < 0 ? -0.06 : 0.06;
+						};
 						if (enemy.position.z < -26.  || enemy.HP <= 0)  {
 							enemy.shootTimer.stop();
 							enemy.visible = false;
 						}
-
 					};
 				};
 
