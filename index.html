@@ -172,8 +172,8 @@
 
 			var container, stats;
 
-			var camera, scene, renderer, ship;
-			var enemies = [];
+			var camera, scene, renderer, playerShip;
+			var heavyEnemies = [];
 			var bullets = [];
 			var hits = [];
 
@@ -186,7 +186,7 @@
 
 			var projector;
 
-			var uniforms, material, mesh;
+			var bgUniforms;
 
 			var debugController;
 
@@ -196,20 +196,15 @@
 			var currentFrameTime;
 			var frameDeltaTime;
 			
-			var bulletSprites = [];
-			
-			var batch_Sprite = {};
 			
 			//sounds ---------------
-			var themeMusic;
-			
-			var shootSound;
-			
+			var themeMusic;			
+			var shootSound;			
 			//sounds END------------
 			
-			var bullet_sprites, hit_sprites, test_sprites;
+			var bulletSprites, hitSprites, test_sprites;
 					
-			var hudSprite_1;
+			var hudSpriteLeft;
 			
 			var shieldSphere;
 
@@ -224,8 +219,8 @@
 			var PLAYER_SHOOT_TIMEOUT = 0.15;
 			var PLAYER_MAX_HP = 5.0;
 			var PLAYER_MAX_ENERGY = 7.0;
-			var PLAYER_HULL_RADIUS = 0.1;
-			var PLAYER_SHIELD_RADIUS = 0.12;
+			var PLAYER_HULL_RADIUS = 0.1; // not used!
+			var PLAYER_SHIELD_RADIUS = 0.12; // not used!
 					
 
 			function ThresoldTimer(_thresold, _active, _callback){
@@ -307,10 +302,10 @@
 					var velocity = new THREE.Vector3(0, 0, 0.8);
 					var firstPosition = new THREE.Vector3(1.6, 0, 2.0);
 					var secondPosition = new THREE.Vector3(-1.6, 0, 2.0);
-					var bullet = new Bullet(ship.position.clone().add(firstPosition), velocity, true);
+					var bullet = new Bullet(playerShip.position.clone().add(firstPosition), velocity, true);
 					bullets.push( bullet );
 
-					bullet = new Bullet(ship.position.clone().add(secondPosition), velocity, true);
+					bullet = new Bullet(playerShip.position.clone().add(secondPosition), velocity, true);
 					bullets.push( bullet );
 					shootSound.play();
 				}
@@ -325,28 +320,25 @@
 
 			function spawnEnemy() {
 				var newEnemy;
-				for (var i = 0; i < enemies.length; i++) {
-					if (enemies[i].visible === false) {
-						newEnemy = enemies[i];
+				for (var i = 0; i < heavyEnemies.length; i++) {
+					if (heavyEnemies[i].visible === false) {
+						newEnemy = heavyEnemies[i];
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 26.);
 						newEnemy.rotation.set(0., Math.PI, 0.);
 						newEnemy.velocity.set(0, 0, -0.3)
 						newEnemy.HP = 8;
 						newEnemy.shootTimer.start();
-				/*		if (newEnemy.position.x > 0)
-							newEnemy.accel.set(-0.0005, 0, -0.001)
-						else 
-							newEnemy.accel.set(0.0005, 0, -0.001)*/
 						break;
 					};
 				};
 
 				if (newEnemy) {
 					newEnemy.visible = true;
-					if (Math.random() < 0.2) { 
-						spawnEnemy(); 
-						newEnemy.position.z += 5;
-					}
+					// recursive spawn
+					// if (Math.random() < 0.2) { 
+					// 	spawnEnemy(); 
+					// 	newEnemy.position.z += 5;
+					// }
 				}
 			}
 
@@ -372,32 +364,31 @@
 
 				scene = new THREE.Scene();
 
-				planeScene = new THREE.Scene();
+				planeScene = new THREE.Scene(); // for screen space drawing
 
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				container.appendChild( stats.domElement );
 
-				uniforms = {
+				bgUniforms = {
 					time: { type: "f", value: 1.0 },
 					iterations: { type: "i", value: 17 },
 					volsteps: { type: "i", value: 12 },
 					resolution: { type: "v2", value: new THREE.Vector2() }
 				};
 
-				material = new THREE.ShaderMaterial( {
+				var bgMaterial = new THREE.ShaderMaterial( {
 
-					uniforms: uniforms,
+					uniforms: bgUniforms,
 					vertexShader: shaders["bg"].vertex,
 					fragmentShader: shaders["bg"].fragment
 
 				} );
 
-				material.depthWrite = false;
+				bgMaterial.depthWrite = false;
 
-				mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), material );
-				planeScene.add( mesh );
+				planeScene.add( new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), bgMaterial ) );
 
 /*
 				for (var i = -10; i <= 10; i++) {	
@@ -426,25 +417,16 @@
 				}*/
 				
 				
-				//camera.lookAt( scene.position );
-
 				var ambient = new THREE.AmbientLight( 0xffffff );
 				scene.add( ambient );
-
-				// var directionalLight = new THREE.DirectionalLight( 0xffeedd );
-				// directionalLight.position.set( 0, 1, 1 ).normalize();
-				// scene.add( directionalLight );
 
 				// model
 
 				var loader = new THREE.OBJMTLLoader();
 				loader.addEventListener( 'load', function ( event ) {
 
-					ship = event.content;
-
-					// enemy = ship.children[0].children[0].clone();
-
-					scene.add( ship );
+					playerShip = event.content;
+					scene.add( playerShip );
 
 				});
 				loader.load( 'obj/fighter/fighter.obj', 'obj/fighter/fighter.mtl' );
@@ -469,7 +451,7 @@
 						timers.push(enemy.shootTimer);
 
 						scene.add( enemy );
-						enemies.push( enemy );
+						heavyEnemies.push( enemy );
 
 					};
 
@@ -532,28 +514,28 @@
 				clock = new THREE.Clock( true );
 				
 				//sprites init
-				bullet_sprites = new AnimatedSprite("sprites/lasers.png");				
+				bulletSprites = new AnimatedSprite("sprites/lasers.png");				
 				for(var i = 0; i < 100; i++){				
-					bullet_sprites.addSprite(new THREE.Vector3( -10000.0, 0.0, -10000.0 ),0.15,0.07);
-					bullet_sprites.rotate(i,Math.PI/2);				
+					bulletSprites.addSprite(new THREE.Vector3( -10000.0, 0.0, -10000.0 ),0.15,0.07);
+					bulletSprites.rotate(i,Math.PI/2);				
 				}							
-				scene.add(bullet_sprites.mesh);
+				scene.add(bulletSprites.mesh);
 
-				hit_sprites = new AnimatedSprite("sprites/hit_sprites.png");			
+				hitSprites = new AnimatedSprite("sprites/hit_sprites.png");			
 				for(var i = 0; i < 50; i++){				
-					hit_sprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
+					hitSprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
 					// hit_sprites.rotate(i, Math.PI);			
 				}							
-				scene.add(hit_sprites.mesh);
+				scene.add(hitSprites.mesh);
 
 				// test_sprites = new AnimatedSprite("sprites/hit_sprites.png");
 				// test_sprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
 				// test_sprites.rotate(0, Math.PI);		
 				// scene.add(test_sprites.mesh);
 
-				hudSprite_1 = new HudSprite("sprites/greenLaserRay.png");
+				hudSpriteLeft = new HudSprite("sprites/greenLaserRay.png");
 				
-				planeScene.add(hudSprite_1.mesh);
+				planeScene.add(hudSpriteLeft.mesh);
 				
 				//shield
 				shieldSphere = new Shield();
@@ -595,14 +577,14 @@
 				camera.aspect = canvas.width / canvas.height;
 				camera.updateProjectionMatrix();
 
-				uniforms.resolution.value.x = canvas.width;
-				uniforms.resolution.value.y = canvas.height;
+				bgUniforms.resolution.value.x = canvas.width;
+				bgUniforms.resolution.value.y = canvas.height;
 
 				// renderer.setSize( window.innerWidth, window.innerHeight );
 				
 				//HUD resize
 				
-				hudSprite_1.mesh.scale.x = hudSprite_1.width / camera.aspect;
+				hudSpriteLeft.mesh.scale.x = hudSpriteLeft.width / camera.aspect;
 				
 				
 
@@ -715,45 +697,47 @@
 
 
 							
-				uniforms.time.value = clock.oldTime * 0.005;
+				bgUniforms.time.value = clock.oldTime * 0.005;
 
 
 				//player stats updating
-				hudSprite_1.hudUniforms.hull.value = playerState.hull / playerState.maxHull;
-				hudSprite_1.hudUniforms.energy.value = playerState.energy / playerState.maxEnergy;
+				hudSpriteLeft.hudUniforms.hull.value = playerState.hull / playerState.maxHull;
+				hudSpriteLeft.hudUniforms.energy.value = playerState.energy / playerState.maxEnergy;
 				playerState.updateState(frameDeltaTime);
 				shieldSphere.updateTime(frameDeltaTime);
 
 				// update bullets				
-				for( var i = 0; i < bullet_sprites.vertices.length / 4; i++ ) {
+				for( var i = 0; i < bulletSprites.vertices.length / 4; i++ ) {
 					var bullet = bullets[i]
 					if (bullet && bullet.visible ) {
 
 						bullet.position.add(bullet.velocity);
-						bullet_sprites.setSpritePosition(i, bullet.position.x, bullet.position.z);
+						bulletSprites.setSpritePosition(i, bullet.position.x, bullet.position.z);
 
 						if (bullet.position.z > 27. || bullet.position.z < -27.  ) 
 							bullet.visible = false;
 
 						if( !bullet.fromPlayer ){
-							bullet_sprites.setSpriteTexCoords(i, enemyBulletTexCoords);
+							bulletSprites.setSpriteTexCoords(i, enemyBulletTexCoords);
 							var delta = shieldSphere.mesh.position.clone().sub(bullet.position);
 							if( playerHitTest(delta) ) { 
+								// player catch the bullet
 								bullet.visible = false;
-								if( playerState.hitByEnemy() ) //if shlield up
-									shieldSphere.addHit(bullet.position.clone().sub(ship.position));
+								if( playerState.hitByEnemy() ) // if shlield up
+									shieldSphere.addHit(bullet.position.clone().sub(playerShip.position));
 
 								var hitEffect = new Hit(bullet.position.clone(), clock.oldTime);
 								hits.push( hitEffect );
 							}
 						}
 						else{
-							bullet_sprites.setSpriteTexCoords(i, playerBulletTexCoords);
-							for (var j = 0; j < enemies.length; j++) {
-								var enemy =  enemies[j];
+							bulletSprites.setSpriteTexCoords(i, playerBulletTexCoords);
+							for (var j = 0; j < heavyEnemies.length; j++) {
+								var enemy =  heavyEnemies[j];
 								if( !enemy.visible ) continue;
 								var delta = enemy.position.clone().sub(bullet.position);
 								if( enemyHitTest(delta) ) { 
+									// enemy catch the bullet
 									enemy.HP -= 1;
 									bullet.visible = false;
 
@@ -765,7 +749,7 @@
 
 					} else {
 
-						if(bullet_sprites.vertices[i * 4].x > - 5000) bullet_sprites.setSpritePosition(i, -10000 , -10000);
+						if(bulletSprites.vertices[i * 4].x > - 5000) bulletSprites.setSpritePosition(i, -10000 , -10000);
 
 					}
 
@@ -773,10 +757,10 @@
 
 
 				// update hits				
-				for( var i = 0; i < hit_sprites.vertices.length / 4; i++ ) {
+				for( var i = 0; i < hitSprites.vertices.length / 4; i++ ) {
 					var hit = hits[i]
 					if( hit && hit.visible ) {
-						hit_sprites.setSpritePosition(i, hit.position.x, hit.position.z);
+						hitSprites.setSpritePosition(i, hit.position.x, hit.position.z);
 
 						var delta = (clock.oldTime - hit.timeOffset) * hit.timeScaleFactor;
 						if( delta < 1.0 ) {
@@ -788,7 +772,7 @@
 								  new THREE.Vector2( (frame+1) * xDelta, 352/500 ),
 								  new THREE.Vector2( frame * xDelta, 352/500 ) ]; 
 
-							hit_sprites.setSpriteTexCoords(i, hitTexCoords);
+							hitSprites.setSpriteTexCoords(i, hitTexCoords);
 						} else {
 							hit.visible = false;
 						}
@@ -796,26 +780,27 @@
 
 					} else {
 
-						if(hit_sprites.vertices[i * 4].x > - 5000) hit_sprites.setSpritePosition(i, -10000 , -10000);
+						if(hitSprites.vertices[i * 4].x > - 5000) hitSprites.setSpritePosition(i, -10000 , -10000);
 					}
 
 				}
 
-				// update enemies
-				for (var i = 0; i < enemies.length; i++) {
-					if (enemies[i].visible === true) {
-						enemies[i].position.add(enemies[i].velocity);
-						if (enemies[i].position.z < -26.  || enemies[i].HP <= 0)  {
-							enemies[i].shootTimer.stop();
-							enemies[i].visible = false;
+				// update heavyEnemies
+				for (var i = 0; i < heavyEnemies.length; i++) {
+					var enemy = heavyEnemies[i]; 
+					if (enemy.visible === true) {
+						enemy.position.add(enemy.velocity);
+						if (enemy.position.z < -26.  || enemy.HP <= 0)  {
+							enemy.shootTimer.stop();
+							enemy.visible = false;
 						}
 
 					};
 				};
 
 
-				// update ship
-				if (ship) {
+				// update playerShip
+				if (playerShip) {
 					var vec = new THREE.Vector3(
 					    ( mouseX / canvas.width ) * 2.,
 					    - ( mouseY / canvas.height ) * 2.,
@@ -828,7 +813,7 @@
 					pos.add( new THREE.Vector3(0, 0, -1.5) );
 
 					var delta = new THREE.Vector3(0, 0, 0);
-					delta.subVectors(pos, ship.position);
+					delta.subVectors(pos, playerShip.position);
 					dlen = delta.length();
 					if(dlen > 5.2) {
 						delta.divideScalar(dlen); 
@@ -838,11 +823,11 @@
 					
 					delta.setY( 0.0 );
 					
-					ship.position.add(delta);
+					playerShip.position.add(delta);
 					var angle = -clamp(delta.x, -1.0, 1.0) / 1.0 * Math.PI / 3.;
-					ship.rotation.set(0, 0, angle);
+					playerShip.rotation.set(0, 0, angle);
 
-					shieldSphere.mesh.position = ship.position.clone();
+					shieldSphere.mesh.position = playerShip.position.clone();
 					shieldSphere.mesh.position.add( new THREE.Vector3(0.0, 0.0, 1.5));
 				}
 
