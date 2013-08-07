@@ -343,6 +343,10 @@
 				// shootSound.play();
 			}	
 
+			function setVisibility(obj3d, value) {
+				obj3d.visible = value;
+				obj3d.traverse( function ( object ) { object.visible = value; } );
+			}
 
 			function spawnHeavyEnemy() {
 				var newEnemy;
@@ -358,7 +362,7 @@
 					};
 				};
 				if (newEnemy) {
-					newEnemy.visible = true;
+					setVisibility(newEnemy, true);
 				}				
 			}
 
@@ -368,7 +372,7 @@
 					if (enemies[i].visible === false && enemies[i].enemyType === 'cube') {
 						newEnemy = enemies[i];
 						newEnemy.position.set(Math.random() * 20 - 10, 0., 26.);
-						newEnemy.rotation.set(0., Math.PI, 0.);
+						newEnemy.rotation.set(0, Math.PI, 0);
 						newEnemy.velocity.set(0, 0, -0.3)
 						newEnemy.HP = 6;
 						newEnemy.shootTimer.start();
@@ -376,7 +380,7 @@
 					};
 				};
 				if (newEnemy) {
-					newEnemy.visible = true;
+					setVisibility(newEnemy, true);
 				}				
 			}
 			
@@ -398,8 +402,8 @@
 				container = document.getElementById("container");
 				document.body.appendChild( container );
 
-				camera = new THREE.PerspectiveCamera( 45, canvas.width / canvas.height, 1, 1000 );
-				camera.position.set( 0, 60, 0 );
+				camera = new THREE.PerspectiveCamera( 35, canvas.width / canvas.height, 1, 1000 );
+				camera.position.set( 0, 75, 0 );
 				camera.rotation.set( - Math.PI / 2., 0, Math.PI);
 
 				planeCamera = new THREE.Camera();
@@ -488,8 +492,9 @@
 						// scene.add( enemy );
 
 					for (var i = 0; i < 10; i++) {
-						var enemy = event.content.children[0].children[0].clone();
-						enemy.visible = false;
+						var enemy = event.content.children[0].clone();
+						setVisibility(enemy, false);
+
 						enemy.velocity = new THREE.Vector3(0, 0, 0);
 						enemy.accel = new THREE.Vector3(0, 0, 0);
 						enemy.shootTimer = new ThresoldTimer(0.95, false, 
@@ -512,8 +517,10 @@
 				var cubeEnemyLoader = new THREE.OBJMTLLoader();
 				cubeEnemyLoader.addEventListener( 'load', function ( event ) {
 					for (var i = 0; i < 10; i++) {
-						var enemy = event.content.children[0].children[0].clone();
-						enemy.visible = false;
+						var enemy = event.content.children[0].clone();
+
+						setVisibility(enemy, false);
+						enemy.scale.set(0.7, 0.6, 0.6);
 						enemy.velocity = new THREE.Vector3(0, 0, 0);
 						enemy.accel = new THREE.Vector3(0, 0, 0);
 						enemy.shootTimer = new ThresoldTimer(0.95, false, 
@@ -530,7 +537,7 @@
 					};
 
 				});
-				cubeEnemyLoader.load( 'obj/cubeEnemy/cube.obj', 'obj/cubeEnemy/cube.mtl' );
+				cubeEnemyLoader.load( 'obj/tinyEnemy/tiny_ship.obj', 'obj/tinyEnemy/tiny_ship.mtl' );
 
 
 
@@ -840,7 +847,7 @@
 						};
 						if (enemy.position.z < -26.  || enemy.HP <= 0)  {
 							enemy.shootTimer.stop();
-							enemy.visible = false;
+							setVisibility(enemy, false);
 						}
 					};
 				};
@@ -855,7 +862,7 @@
 
 					projector.unprojectVector( vec, camera );
 					var dir = vec.sub( camera.position ).normalize();
-					var distance = - (camera.position.y + 60.) / dir.y;
+					var distance = - (camera.position.y + 75.) / dir.y;
 					var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
 					pos.add( new THREE.Vector3(0, 0, -1.5) );
 
