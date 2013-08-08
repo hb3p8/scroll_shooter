@@ -4,7 +4,24 @@
 		<title>webgl - game</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css" />
 		<style>
+.ui-widget-header {
+	border: 0px;
+	background: 0;
+}
+.ui-dialog .ui-dialog-buttonpane button {
+	background: 0;
+}
+.no-close .ui-dialog-titlebar-close {
+  display: none;
+}
+.ui-dialog .ui-dialog-buttonpane{
+	border: 0px;
+	padding: 0;
+	margin-top: 0;
+}
+
 			body {
 				font-family: Monospace;
 				background-color: #111111;
@@ -31,11 +48,19 @@
 	</head>
 
 	<body>
-		<div id="info">
-		<!-- Based on <a href="http://threejs.org" target="_blank">three.js</a> -->
-		</div>
+
+<div id="dialog" title="Basic dialog">
+  <p>boooom!</p>
+</div>
+
+
+
 		<div id="container">
 			<canvas id="canvas">Canvas is not supported</canvas>
+		</div>
+
+		<div id="info">
+		Based on <a href="http://threejs.org" target="_blank">three.js</a> | Graphics (<a>low</a>, <a>high</a>, <a>extra</a>) | <a>About</a>
 		</div>
 
 
@@ -49,6 +74,9 @@
 		<script src='js/libs/dat.gui.min.js'></script>
 		<script src='js/libs/howler.min.js'></script>
 		<script src='js/libs/jquery-1.10.2.js'></script>
+
+		
+		<script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
 		
 
 		<script data-name="bg" type="x-shader/x-vertex" data-src='shaders/bg.vert'></script>
@@ -70,6 +98,19 @@
 
 
 		<script>
+
+			  $(function() {
+			  	$( "#dialog" ).dialog({ 
+			  		draggable: false, 
+			  		modal: true, 
+			  		resizable: false, 
+			  		dialogClass: "no-close",
+			  		autoOpen: false,
+			  		title: "Game Over!" });
+
+			  	$( "#dialog" ).dialog( "option", "buttons", [ { text: "Retry", click: function() { $( this ).dialog( "close" ); } } ] );
+
+			  });
 
 
 			var shaders = {};
@@ -256,10 +297,11 @@
 			  return this.push.apply(this, rest);
 			};
 
-			function Bullet(position, velocity, fromPlayer)
+			function Bullet(position, velocity, fromPlayer, rotation)
 			{
 				this.position=position;
 				this.velocity=velocity;
+				this.rotation=rotation || Math.PI/2;
 				this.fromPlayer=fromPlayer;
 				this.visible = true;
 			}
@@ -340,6 +382,18 @@
 				var velocity = new THREE.Vector3(0, 0, -0.6);
 				var bullet = new Bullet(enemy.position.clone(), velocity, false);
 				bullets.push( bullet ); 
+			}	
+
+			function enemyHeavyShoot(enemy) {
+				var velocity = new THREE.Vector3(0, 0, -0.6);
+				var bullet = new Bullet(enemy.position.clone(), velocity, false);
+				bullets.push( bullet ); 
+
+				bullet = new Bullet(enemy.position.clone(), new THREE.Vector3(-0.2, 0, -0.55), false, Math.PI * 2/3);
+				bullets.push( bullet );
+
+				bullet = new Bullet(enemy.position.clone(), new THREE.Vector3(0.2, 0, -0.55), false, -Math.PI * 2/3);
+				bullets.push( bullet );
 				// shootSound.play();
 			}	
 
@@ -503,7 +557,7 @@
 						enemy.velocity = new THREE.Vector3(0, 0, 0);
 						enemy.accel = new THREE.Vector3(0, 0, 0);
 						enemy.shootTimer = new ThresoldTimer(0.95, false, 
-							function(e){ return function(){ enemyShoot(e); } }(enemy) );
+							function(e){ return function(){ enemyHeavyShoot(e); } }(enemy) );
 						enemy.shootTimer.stop();
 						timers.push(enemy.shootTimer);
 
@@ -525,7 +579,7 @@
 						var enemy = event.content.children[0].clone();
 
 						setVisibility(enemy, false);
-						enemy.scale.set(0.6, 0.5, 0.5);
+						enemy.scale.set(0.45, 0.4, 0.4);
 						enemy.velocity = new THREE.Vector3(0, 0, 0);
 						enemy.accel = new THREE.Vector3(0, 0, 0);
 						enemy.shootTimer = new ThresoldTimer(0.95, false, 
@@ -579,7 +633,7 @@
 				var gui = new dat.GUI();
 
 				var f1 = gui.addFolder('Main');
-				f1.add( debugController, "enabled" ).name("Animation enabled");
+				f1.add( debugController, "enabled" ).name("Animation enabled").listen();
 				// var f2 = gui.addFolder('Background');
 				// f2.add( debugController, "iterations", 5, 25 ).name("Iterations").onChange( debugUpdate );
 				// f2.add( debugController, "volsteps", 5, 40 ).name("Volume steps").onChange( debugUpdate );
@@ -610,8 +664,7 @@
 
 				hitSprites = new AnimatedSprite("sprites/hit_sprites.png");			
 				for(var i = 0; i < 50; i++){				
-					hitSprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);
-					// hit_sprites.rotate(i, Math.PI);			
+					hitSprites.addSprite(new THREE.Vector3( 0.0, 0.0, 0.0 ), 0.2, 0.2);			
 				}							
 				scene.add(hitSprites.mesh);
 
@@ -763,6 +816,18 @@
 				playerState.updateState(frameDeltaTime);
 				shieldSphere.updateTime(frameDeltaTime);
 
+				if (playerState.hull <= 0) {
+					debugController.enabled = false;
+					$( "#dialog" ).dialog({
+					  close: function( event, ui ) {
+					  	debugController.enabled = true;
+					  	playerState.hull = playerState.maxHull;
+					  	playerState.energy = playerState.maxEnergy;
+					  }
+					});
+					$( "#dialog" ).dialog( "open" );
+				};
+
 				// update bullets				
 				for( var i = 0; i < bulletSprites.vertices.length / 4; i++ ) {
 					var bullet = bullets[i]
@@ -770,6 +835,7 @@
 
 						bullet.position.add(bullet.velocity);
 						bulletSprites.setSpritePosition(i, bullet.position.x, bullet.position.z);
+						bulletSprites.setRotation(i, bullet.rotation, 0.15, 0.07);
 
 						if (bullet.position.z > 27. || bullet.position.z < -27.  ) 
 							bullet.visible = false;
