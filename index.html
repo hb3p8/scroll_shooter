@@ -255,6 +255,8 @@
 			
 			var playerState;
 
+			var cameraLevel = 75.;
+
 			// constants
 
 			var PLAYER_SHOOT_TIMEOUT = 0.15;
@@ -457,7 +459,7 @@
 				document.body.appendChild( container );
 
 				camera = new THREE.PerspectiveCamera( 35, canvas.width / canvas.height, 1, 1000 );
-				camera.position.set( 0, 75, 0 );
+				camera.position.set( 0, cameraLevel, 0 );
 				camera.rotation.set( - Math.PI / 2., 0, Math.PI);
 
 				planeCamera = new THREE.Camera();
@@ -809,6 +811,9 @@
 							
 				bgUniforms.time.value = clock.oldTime * 0.005;
 
+				cameraLevel = 75.0 + Math.exp( -clock.oldTime * 0.001 ) * 100.0;
+				camera.position.set( 0, cameraLevel, 0 );
+
 
 				//player stats updating
 				hudSpriteLeft.hudUniforms.hull.value = playerState.hull / playerState.maxHull;
@@ -933,17 +938,21 @@
 
 					projector.unprojectVector( vec, camera );
 					var dir = vec.sub( camera.position ).normalize();
-					var distance = - (camera.position.y + 75.) / dir.y;
+					var distance = - (camera.position.y + cameraLevel) / dir.y;
 					var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
 					pos.add( new THREE.Vector3(0, 0, -1.5) );
 
 					var delta = new THREE.Vector3(0, 0, 0);
 					delta.subVectors(pos, playerShip.position);
 					dlen = delta.length();
-					if(dlen > 5.2) {
+					if(dlen > 0.05) {
 						delta.divideScalar(dlen); 
-						delta.multiplyScalar(Math.min(Math.sqrt(dlen), 5.2));
-						// Ускорил корабль, нафиг реализм так веселее!
+						delta.multiplyScalar(dlen + 3.0);	
+					}
+					if(dlen > 4.2) {
+						delta.divideScalar(dlen); 
+						delta.multiplyScalar(5.2);
+
 					}
 					
 					delta.setY( 0.0 );
