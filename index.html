@@ -64,7 +64,7 @@
 		</div>
 
 
-		<script src="js/libs/three.js"></script>
+		<script src="js/libs/three.min.js"></script>
 
 		<script src="js/loaders/MTLLoader.js"></script>
 		<script src="js/loaders/OBJMTLLoader.js"></script>
@@ -91,11 +91,14 @@
 		<script data-name="shield" type="x-shader/x-vertex" data-src='shaders/shield.vert'></script>
 		<script data-name="shield" type="x-shader/x-fragment" data-src='shaders/shield.frag'></script>
 
+		<script data-name="explosion" type="x-shader/x-vertex" data-src='shaders/explosion.vert'></script>
+		<script data-name="explosion" type="x-shader/x-fragment" data-src='shaders/explosion.frag'></script>
+
 		<script src='js/AnimatedSprite.js'></script>
 		<script src='js/Hud.js'></script>
 		<script src='js/Shield.js'></script>
 		<script src='js/PlayerState.js'></script>
-
+		<script src='js/ExplosionManager.js'></script>
 
 		<script>
 
@@ -248,6 +251,8 @@
 			var hudSpriteLeft;
 			
 			var shieldSphere;
+
+			var explosions;
 
 			var clock;
 			var timers = [];
@@ -682,6 +687,10 @@
 				//shield
 				shieldSphere = new Shield();
 				scene.add(shieldSphere.mesh);
+
+				//explosions
+
+				explosions = new ExplosionManager(scene,5);
 						
 				
 				//sounds init
@@ -821,6 +830,8 @@
 				playerState.updateState(frameDeltaTime);
 				shieldSphere.updateTime(frameDeltaTime);
 
+				explosions.update(frameDeltaTime);
+
 				if (playerState.hull <= 0) {
 					debugController.enabled = false;
 					$( "#dialog" ).dialog({
@@ -921,9 +932,16 @@
 						if (enemy.enemyType === 'cube') {
 							enemy.velocity.x = Math.sin(clock.oldTime*0.001) < 0 ? -0.06 : 0.06;
 						};
-						if (enemy.position.z < -26.  || enemy.HP <= 0)  {
+						if (enemy.position.z < -26.)  {
 							enemy.shootTimer.stop();
 							setVisibility(enemy, false);
+						}
+						else if (enemy.HP <= 0)
+						{
+							enemy.shootTimer.stop();
+							setVisibility(enemy, false);
+							//explosion
+							explosions.addExplosion(1.0, 2.5, enemy.position.clone(), 1.0);
 						}
 					};
 				};
