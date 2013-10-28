@@ -626,7 +626,27 @@
 
 				debugController  = {
 
-					enabled: true
+					enabled: true,
+					is_music_enabled : true,
+					is_soundFX_enabled : true,
+					music_enabled: function(){
+
+						if(this.is_music_enabled)
+						{
+							themeMusic.mute();
+							this.is_music_enabled = false;
+						}
+						else
+						{
+							themeMusic.unmute();
+							this.is_music_enabled = true;
+						}
+
+					},
+					sounds_enabled: function(){
+						
+					}
+
 					// iterations: 17,
 					// volsteps: 12
 
@@ -647,6 +667,9 @@
 				var f3 = gui.addFolder('Stats');
 				f3.add( bullets, "length" ).name("Bullets count").listen();
 				f3.add( hits, "length" ).name("Hits count").listen();
+				var f4 = gui.addFolder('Sound');
+				f4.add( debugController, "music_enabled" ).name("music on/off").listen();
+				f4.add( debugController, "sounds_enabled" ).name("Sound FX on/off").listen();
 				gui.close();
 
 
@@ -695,10 +718,21 @@
 				
 				//sounds init
 				shootSound = new Howl({
-					volume: 0.2,
+					volume: 0.1,
 					urls: ['sounds/Laser1.ogg']
 				});
+
+
+				themeMusic = new Howl({
+					volume: 0.2,
+					autoplay: true,
+					loop: true,
+					urls: ['sounds/blast3_ogg.ogg']
+				});
 				
+				//themeMusic start
+				//themeMusic.play();
+
 				// player stats
 
 				playerState = new PlayerState(PLAYER_MAX_HP,PLAYER_MAX_ENERGY,PLAYER_MAX_HP,PLAYER_MAX_ENERGY);
